@@ -1,59 +1,73 @@
-# Forever WoW Beta Bluepost → Discord
+# Forever Server
 
-A tiny GitHub Actions watcher for Blizzard's official Blue Tracker. It forwards only Blizzard posts whose topic belongs to **WoW: Forever Beta Discussion** (category `349`) to a Discord webhook.
+A small collection of independent convenience services for **World of Warcraft: Forever**, currently focused on the Forever Beta and designed to grow into the live-launch utility layer.
 
-## What it does
+Each checker lives as a peer service under `services/`. The repository itself is the neutral host; no checker is architecturally primary.
 
-- polls every 5 minutes via GitHub Actions
-- filters Blizzard tracker activity to the Forever Beta forum
-- posts author, topic title, excerpt, timestamp, and direct link to Discord
-- suppresses duplicates without a database
-- bootstraps silently on the first run, so old blueposts are not dumped into the channel
-- can also be run manually from **Actions → Forever WoW Beta Blueposts → Run workflow**
+## Architecture
 
-## Required repository secret
+```text
+forever-server/
+├── services/
+│   ├── beta-blue-checker/
+│   │   └── check.mjs
+│   └── beta-realm-status/
+│       └── check.mjs
+├── .github/
+│   └── workflows/
+│       ├── beta-blue-checker.yml
+│       └── beta-realm-status.yml
+├── package.json
+└── README.md
+```
 
-Create an Actions secret named:
+## Services
 
-`DISCORD_WEBHOOK_URL`
+### beta-blue-checker → Discord `#beta-blue-checker`
 
-Its value is the Discord channel webhook URL. Do **not** commit the URL to the repository.
+Polls Blizzard's official Blue Tracker every five minutes and forwards only Blizzard posts whose topic belongs to **WoW: Forever Beta Discussion** (category `349`).
 
-Path in GitHub:
+It:
+- posts author, topic title, cleaned excerpt, timestamp, and direct forum link
+- suppresses duplicates without a separate database
+- bootstraps silently so historical blueposts are not dumped into Discord
+- stores the latest processed Blizzard post ID in the Discord webhook's metadata
+- can also be run manually from GitHub Actions
 
-**Settings → Secrets and variables → Actions → New repository secret**
+Required Actions secret: `DISCORD_WEBHOOK_URL`.
 
-## Duplicate suppression
+### beta-realm-status → Discord `#beta-realm-status`
 
-The watcher stores the latest processed Blizzard post ID in the Discord webhook's own name:
-
-`ForeverBlueposts:last=<postId>`
-
-The individual Discord messages override their sender display name to `Forever Blueposts`, so this state marker is not shown as the message author.
-
-## Notes
-
-GitHub scheduled workflows can be delayed during periods of high Actions load. The five-minute cron is therefore a target polling cadence, not a real-time delivery guarantee.
-
-
-## Realm-status sentry
-
-The repository also runs a Forever Beta service-status sentry every five minutes.
+Polls Forever Beta service state every five minutes and notifies Discord only when the observed state changes.
 
 It checks:
-
 - Blizzard's beta login endpoint at `test.actual.battle.net:1119`
 - a beta realm game-service endpoint on port `3724`
 - ForeverDB's aggregate realm check as corroboration/fallback
 
-The sentry posts to Discord **only when the observed service state changes**:
-
+States:
 - 🟢 online
 - 🔴 offline
-- 🟡 degraded (realm answering while login service is unavailable)
+- 🟡 degraded
 
-Its persistent state is stored in GitHub issue #1 so scheduled runners can remain stateless.
+Persistent state is stored in GitHub issue #1 so scheduled runners remain otherwise stateless.
 
-By default it sends through `DISCORD_WEBHOOK_URL`, the same webhook used by the bluepost relay. To route realm-status alerts to a separate Discord channel, create an Actions secret named `DISCORD_REALM_STATUS_WEBHOOK_URL`; no code change is needed.
+Preferred Actions secret: `DISCORD_REALM_STATUS_WEBHOOK_URL`.
+If that secret is absent, the service falls back to `DISCORD_WEBHOOK_URL`.
 
-The first run bootstraps silently rather than announcing the current state.
+## Local commands
+
+```bash
+npm run check:blue
+npm run check:realm
+```
+
+The scripts require the same environment variables used by GitHub Actions.
+
+## Scheduling
+
+Both services target a five-minute polling cadence through GitHub Actions. GitHub may occasionally delay scheduled jobs under load, so five minutes is a target interval rather than a hard real-time guarantee.
+
+## Design rule
+
+New Forever utilities should normally be added as sibling directories under `services/`, with their own workflow and narrowly scoped state/secret requirements. This keeps `forever-server` as the common infrastructure layer rather than allowing any one checker to become the implicit root application.

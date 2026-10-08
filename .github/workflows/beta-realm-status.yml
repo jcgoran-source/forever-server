@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'realm-status.mjs'
-      - '.github/workflows/realm-status.yml'
+      - 'services/beta-realm-status/**'
+      - '.github/workflows/beta-realm-status.yml'
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
@@ -15,7 +15,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: forever-realm-status
+  group: forever-beta-realm-status
   cancel-in-progress: false
 
 jobs:
@@ -33,4 +33,4 @@ jobs:
           STATE_ISSUE_NUMBER: '1'
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           DISCORD_REALM_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_REALM_STATUS_WEBHOOK_URL }}
-        run: node realm-status.mjs
+        run: node services/beta-realm-status/check.mjs

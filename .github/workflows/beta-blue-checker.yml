@@ -1,8 +1,11 @@
-name: Forever WoW Beta Blueposts
+name: Forever Beta Blue Checker
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'services/beta-blue-checker/**'
+      - '.github/workflows/beta-blue-checker.yml'
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
@@ -11,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: forever-blueposts
+  group: forever-beta-blue-checker
   cancel-in-progress: false
 
 jobs:
@@ -26,4 +29,4 @@ jobs:
       - name: Check for new Forever blueposts
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: node check.mjs
+        run: node services/beta-blue-checker/check.mjs

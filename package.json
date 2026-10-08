@@ -1,9 +1,10 @@
 {
-  "name": "forever-blueposts",
+  "name": "forever-server",
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node check.mjs"
+    "check:blue": "node services/beta-blue-checker/check.mjs",
+    "check:realm": "node services/beta-realm-status/check.mjs"
   },
   "engines": {
     "node": ">=20"
