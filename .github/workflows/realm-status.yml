@@ -1,0 +1,36 @@
+name: Forever Beta Realm Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'realm-status.mjs'
+      - '.github/workflows/realm-status.yml'
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: forever-realm-status
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe Forever Beta services
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STATE_ISSUE_NUMBER: '1'
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_REALM_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_REALM_STATUS_WEBHOOK_URL }}
+        run: node realm-status.mjs
