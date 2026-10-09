@@ -94,7 +94,7 @@ async function foreverDbProbe() {
     const response = await fetch(FOREVERDB_URL, {
       headers: {
         accept: 'text/html',
-        'user-agent': 'ForeverRealmStatus/1.0 (+GitHub Actions)',
+        'user-agent': 'ForeverRealmStatus/1.1 (+GitHub Actions)',
       },
       signal: AbortSignal.timeout(8000),
     });
@@ -104,13 +104,25 @@ async function foreverDbProbe() {
     }
 
     const text = htmlToText(await response.text());
-    const loginMatch = text.match(/Beta login server\s+(Up|Down)\b/i);
-    const realmMatch = text.match(/Realm game servers\s+(Up|Down)\b/i);
+    const loginMatch = text.match(
+      /Beta login server\s+(Not answering|Answering|Offline|Online|Down|Up)\b/i,
+    );
+    const realmMatch = text.match(
+      /Realm game servers\s+(Not answering|Answering|Offline|Online|Down|Up)\b/i,
+    );
     const plannedMatch = text.match(/Maintenance planned:\s*(.{0,280}?)(?:Beta login server|##|$)/i);
 
+    const statusValue = (match) => {
+      if (!match) return null;
+      const value = match[1].toLowerCase();
+      if (value === 'answering' || value === 'up' || value === 'online') return true;
+      if (value === 'not answering' || value === 'down' || value === 'offline') return false;
+      return null;
+    };
+
     return {
-      login: loginMatch ? loginMatch[1].toLowerCase() === 'up' : null,
-      realm: realmMatch ? realmMatch[1].toLowerCase() === 'up' : null,
+      login: statusValue(loginMatch),
+      realm: statusValue(realmMatch),
       maintenance: plannedMatch?.[1]?.trim() || null,
       error: null,
     };
@@ -143,7 +155,7 @@ function extractState(body = '') {
 
 function stateBody(state) {
   return [
-    'Managed automatically by `realm-status.mjs`. Please do not edit.',
+    'Managed automatically by `services/beta-realm-status/check.mjs`. Please do not edit.',
     '',
     '```json',
     JSON.stringify(state),
@@ -162,7 +174,7 @@ async function githubRequest(path, options = {}) {
       accept: 'application/vnd.github+json',
       authorization: `Bearer ${token}`,
       'x-github-api-version': '2022-11-28',
-      'user-agent': 'ForeverRealmStatus/1.0 (+GitHub Actions)',
+      'user-agent': 'ForeverRealmStatus/1.1 (+GitHub Actions)',
       ...(options.headers || {}),
     },
   });
@@ -253,7 +265,7 @@ async function sendDiscord(state, previous, diagnostics) {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'user-agent': 'ForeverRealmStatus/1.0 (+GitHub Actions)',
+      'user-agent': 'ForeverRealmStatus/1.1 (+GitHub Actions)',
     },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(8000),
