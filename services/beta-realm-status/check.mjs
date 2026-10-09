@@ -286,8 +286,13 @@ async function main() {
 
   // ForeverDB checks all four beta game servers, so prefer its aggregate realm
   // result when available. Direct TCP probes are an independent fallback/sanity check.
-  const loginUp = foreverDb.login ?? loginTcp.up;
-  const realmUp = foreverDb.realm ?? realmTcp.up;
+  // A successful direct TCP probe is useful positive evidence. A failed probe
+  // from a GitHub-hosted runner is not, by itself, sufficient evidence that
+  // Blizzard is down: routing/firewall differences can make the runner unable
+  // to reach a healthy service. If ForeverDB becomes unparsable/unavailable,
+  // preserve failed direct probes as "unknown" rather than creating a false outage.
+  const loginUp = foreverDb.login ?? (loginTcp.up ? true : null);
+  const realmUp = foreverDb.realm ?? (realmTcp.up ? true : null);
 
   const observed = {
     version: 1,
