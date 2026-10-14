@@ -38,19 +38,26 @@ Required Actions secret: `DISCORD_WEBHOOK_URL`.
 
 ### beta-realm-status → Discord `#beta-realm-status`
 
-Polls Forever Beta service state every five minutes and notifies Discord only when the observed state changes.
+Polls Forever Beta service state and resolves several independent signals into one announced state.
 
-It checks:
-- Blizzard's beta login endpoint at `test.actual.battle.net:1119`
-- a beta realm game-service endpoint on port `3724`
-- ForeverDB's aggregate realm check as corroboration/fallback
+Evidence sources:
+- **ForeverDB aggregate probes** for the beta login and realm game services. The checker parses ForeverDB's own per-minute timestamps and rejects stale results instead of treating an old page as current truth.
+- **Direct TCP probes** from the runtime to Blizzard's beta login endpoint and a realm game-service endpoint. Successful connections are useful positive evidence; failed hosted-runner connections are deliberately treated as inconclusive rather than proof of an outage.
+- **Recent official Blizzard tracker posts** in the Forever Beta forum. Explicit "online", "offline", and transition/maintenance language is used as corroborating context.
 
 States:
-- 🟢 online
-- 🔴 offline
-- 🟡 degraded
+- 🟢 **online**
+- 🔴 **offline**
+- 🟡 **degraded**
+- ⚪ **unknown** — sources are stale, unavailable, insufficient, or materially contradictory
 
-Persistent state is stored in GitHub issue #1 so scheduled runners remain otherwise stateless.
+The resolver is intentionally asymmetric: it is easier to prove that a service answered than to prove that it is globally unavailable. Conflicting evidence therefore degrades to `unknown` rather than manufacturing an outage.
+
+An `unknown` result must occur on two consecutive checks before Discord is notified, which filters one-off source failures without hiding sustained uncertainty. The last confirmed non-unknown state is retained separately.
+
+The sentry also posts one health heartbeat every 24 hours when no transition occurs. This makes "nothing changed" distinguishable from "the monitor itself stopped working."
+
+Persistent state is currently stored in GitHub issue #1. The decision engine is independent of that storage adapter so the state can move to Cloudflare KV or a Durable Object when the scheduler is migrated.
 
 Preferred Actions secret: `DISCORD_REALM_STATUS_WEBHOOK_URL`.
 If that secret is absent, the service falls back to `DISCORD_WEBHOOK_URL`.
