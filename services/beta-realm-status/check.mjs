@@ -574,7 +574,7 @@ async function githubRequest(path, options = {}) {
 
 async function getPreviousState() {
   const issue = await githubRequest(`/issues/${STATE_ISSUE_NUMBER}`);
-  return normalizeState(extractState(issue.body));
+  return extractState(issue.body) || {};
 }
 
 async function saveState(state) {
