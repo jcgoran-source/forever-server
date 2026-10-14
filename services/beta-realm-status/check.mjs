@@ -14,6 +14,7 @@ const FOREVER_CATEGORY_ID = 349;
 const STATE_ISSUE_NUMBER = Number(process.env.STATE_ISSUE_NUMBER || '1');
 const FOREVERDB_MAX_AGE_MS = 10 * 60 * 1000;
 const OFFICIAL_SIGNAL_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const OFFICIAL_VOTE_MAX_AGE_MS = 90 * 60 * 1000;
 const HEALTH_HEARTBEAT_MS = 24 * 60 * 60 * 1000;
 const UNKNOWN_CONFIRMATIONS = 2;
 
@@ -382,8 +383,13 @@ function foreverDbState(source) {
 function resolveStatus({ foreverDb, loginTcp, realmTcp, official }) {
   const dbState = foreverDbState(foreverDb);
   const directOnline = loginTcp.up && realmTcp.up;
+  const officialVoteIsFresh =
+    Number.isFinite(official.age_ms) &&
+    official.age_ms <= OFFICIAL_VOTE_MAX_AGE_MS;
+
   const officialState =
-    official.signal === 'online' || official.signal === 'offline'
+    officialVoteIsFresh &&
+    (official.signal === 'online' || official.signal === 'offline')
       ? official.signal
       : null;
 
@@ -391,7 +397,11 @@ function resolveStatus({ foreverDb, loginTcp, realmTcp, official }) {
     foreverdb: dbState,
     direct_login: loginTcp.up ? 'positive' : 'inconclusive',
     direct_realm: realmTcp.up ? 'positive' : 'inconclusive',
-    official: official.signal || 'none',
+    official: official.signal
+      ? officialVoteIsFresh
+        ? official.signal
+        : `${official.signal}-context-only`
+      : 'none',
   };
 
   if (dbState === 'online') {
