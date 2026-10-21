@@ -32,7 +32,7 @@ export function resolveStatus(profile, diagnostics) {
     official: official?.signal
       ? officialVoteIsFresh
         ? official.signal
-        : `\${official.signal}-context-only`
+        : `${official.signal}-context-only`
       : 'none',
   };
 
