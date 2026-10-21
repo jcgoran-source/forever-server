@@ -37,7 +37,7 @@ export function getProfile(name = 'beta') {
   const profile = PROFILES[name];
   if (!profile) {
     throw new Error(
-      `Unknown Forever environment profile "\${name}". Available profiles: \${Object.keys(PROFILES).join(', ')}`,
+      `Unknown Forever environment profile "${name}". Available profiles: ${Object.keys(PROFILES).join(', ')}`,
     );
   }
   return profile;
