@@ -44,23 +44,23 @@ export async function executeSentry({
 
   if (decision.bootstrap) {
     console.log(
-      `Bootstrapped \${profile.id} realm sentry at \${observed.status}; no Discord notification sent.`,
+      `Bootstrapped ${profile.id} realm sentry at ${observed.status}; no Discord notification sent.`,
     );
   } else if (decision.action === 'transition') {
     console.log(
-      `Realm-status transition sent: \${decision.previous.status} -> \${observed.status} (\${observed.confidence}).`,
+      `Realm-status transition sent: ${decision.previous.status} -> ${observed.status} (${observed.confidence}).`,
     );
   } else if (decision.action === 'heartbeat') {
     console.log(
-      `Realm sentry health heartbeat sent: \${observed.status} (\${observed.confidence}).`,
+      `Realm sentry health heartbeat sent: ${observed.status} (${observed.confidence}).`,
     );
   } else if (observed.status === 'unknown') {
     console.warn(
-      `Realm status inconclusive; streak=\${decision.next.unknown_streak}. No outage asserted.`,
+      `Realm status inconclusive; streak=${decision.next.unknown_streak}. No outage asserted.`,
     );
   } else {
     console.log(
-      `No realm-status transition: still \${observed.status} (\${observed.confidence}).`,
+      `No realm-status transition: still ${observed.status} (${observed.confidence}).`,
     );
   }
 
