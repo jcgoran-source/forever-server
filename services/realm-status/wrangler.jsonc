@@ -1,0 +1,30 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "forever-realm-status",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-21",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "FOREVER_ENV": "beta"
+  },
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SENTRY_STATE",
+        "class_name": "SentryState"
+      }
+    ]
+  },
+  "exports": {
+    "SentryState": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  }
+}

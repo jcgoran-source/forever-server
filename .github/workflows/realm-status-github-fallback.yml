@@ -1,11 +1,11 @@
-name: Forever Beta Realm Status
+name: Forever Realm Status (GitHub fallback)
 
 on:
   push:
     branches: [main]
     paths:
-      - 'services/beta-realm-status/**'
-      - '.github/workflows/beta-realm-status.yml'
+      - 'services/realm-status/**'
+      - '.github/workflows/realm-status-github-fallback.yml'
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
@@ -15,7 +15,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: forever-beta-realm-status
+  group: forever-realm-status-github
   cancel-in-progress: false
 
 jobs:
@@ -27,10 +27,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Probe Forever Beta services
+      - name: Test realm-status resolver
+        run: node --test services/realm-status/core.test.mjs
+      - name: Probe Forever realm services
         env:
+          FOREVER_ENV: beta
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STATE_ISSUE_NUMBER: '1'
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           DISCORD_REALM_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_REALM_STATUS_WEBHOOK_URL }}
-        run: node services/beta-realm-status/check.mjs
+        run: node services/realm-status/runtimes/github.mjs

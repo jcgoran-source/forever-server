@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "check:blue": "node services/beta-blue-checker/check.mjs",
-    "check:realm": "node services/beta-realm-status/check.mjs"
+    "check:realm": "node services/realm-status/runtimes/github.mjs",
+    "test:realm": "node --test services/realm-status/core.test.mjs"
   },
   "engines": {
     "node": ">=20"
