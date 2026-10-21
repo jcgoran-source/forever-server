@@ -6,18 +6,18 @@ function sourceSummary(diagnostics) {
     diagnostics.foreverDb?.login_fresh && diagnostics.foreverDb?.realm_fresh;
 
   const dbText = dbFresh
-    ? `\${statusLabel(db)} · login checked \${diagnostics.foreverDb.login_checked_at} · realm checked \${diagnostics.foreverDb.realm_checked_at}`
-    : `UNKNOWN · \${diagnostics.foreverDb?.error || 'stale/unparseable'}`;
+    ? `${statusLabel(db)} · login checked ${diagnostics.foreverDb.login_checked_at} · realm checked ${diagnostics.foreverDb.realm_checked_at}`
+    : `UNKNOWN · ${diagnostics.foreverDb?.error || 'stale/unparseable'}`;
 
   const directText = [
-    `login \${diagnostics.loginTcp?.up ? `answering (\${diagnostics.loginTcp.latency} ms)` : 'inconclusive'}`,
-    `realm \${diagnostics.realmTcp?.up ? `answering (\${diagnostics.realmTcp.latency} ms)` : 'inconclusive'}`,
+    `login ${diagnostics.loginTcp?.up ? `answering (${diagnostics.loginTcp.latency} ms)` : 'inconclusive'}`,
+    `realm ${diagnostics.realmTcp?.up ? `answering (${diagnostics.realmTcp.latency} ms)` : 'inconclusive'}`,
   ].join(' · ');
 
   const officialText = diagnostics.official?.signal
-    ? `\${diagnostics.official.signal.toUpperCase()} · \${diagnostics.official.title}`
+    ? `${diagnostics.official.signal.toUpperCase()} · ${diagnostics.official.title}`
     : diagnostics.official?.error
-      ? `unavailable · \${diagnostics.official.error}`
+      ? `unavailable · ${diagnostics.official.error}`
       : 'no recent explicit state signal';
 
   return { dbText, directText, officialText };
@@ -32,22 +32,22 @@ export async function sendDiscord({
   }
 
   const styles = {
-    online: [`🟢 \${profile.displayName} is ONLINE`, 0x57f287],
-    offline: [`🔴 \${profile.displayName} is OFFLINE`, 0xed4245],
-    degraded: [`🟡 \${profile.displayName} is DEGRADED`, 0xfee75c],
-    unknown: [`⚪ \${profile.displayName} status is UNKNOWN`, 0x99aab5],
+    online: [`🟢 ${profile.displayName} is ONLINE`, 0x57f287],
+    offline: [`🔴 ${profile.displayName} is OFFLINE`, 0xed4245],
+    degraded: [`🟡 ${profile.displayName} is DEGRADED`, 0xfee75c],
+    unknown: [`⚪ ${profile.displayName} status is UNKNOWN`, 0x99aab5],
   };
 
   let [title, color] = styles[observed.status] || styles.unknown;
   let description = observed.reason;
 
   if (kind === 'heartbeat') {
-    title = `💓 Realm sentry healthy · \${statusLabel(observed.status)}`;
+    title = `💓 Realm sentry healthy · ${statusLabel(observed.status)}`;
     color = styles[observed.status]?.[1] || 0x99aab5;
     description = 'The sentry is healthy and its evidence sources produced a usable status.';
   } else if (observed.status === 'unknown') {
     description =
-      `\${observed.reason} No outage is being asserted. Last confirmed state: \${statusLabel(previous.confirmed_status)}.`;
+      `${observed.reason} No outage is being asserted. Last confirmed state: ${statusLabel(previous.confirmed_status)}.`;
   }
 
   const summary = sourceSummary(diagnostics);
@@ -70,21 +70,21 @@ export async function sendDiscord({
       footer: {
         text: kind === 'heartbeat'
           ? '24-hour health heartbeat'
-          : `Previous announced state: \${statusLabel(previous.status)}`,
+          : `Previous announced state: ${statusLabel(previous.status)}`,
       },
     }],
   };
 
   const separator = webhookUrl.includes('?') ? '&' : '?';
-  const response = await fetchImpl(`\${webhookUrl}\${separator}wait=true`, {
+  const response = await fetchImpl(`${webhookUrl}${separator}wait=true`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'user-agent': `ForeverRealmStatus/3.0 (\${runtimeLabel})`,
+      'user-agent': `ForeverRealmStatus/3.0 (${runtimeLabel})`,
     },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(8000),
   });
 
-  if (!response.ok) throw new Error(`Discord send -> HTTP \${response.status}`);
+  if (!response.ok) throw new Error(`Discord send -> HTTP ${response.status}`);
 }
