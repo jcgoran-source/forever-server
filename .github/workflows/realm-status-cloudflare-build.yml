@@ -1,0 +1,32 @@
+name: Realm Sentry Cloudflare Build Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/realm-status/**'
+      - '.github/workflows/realm-status-cloudflare-build.yml'
+  pull_request:
+    paths:
+      - 'services/realm-status/**'
+      - '.github/workflows/realm-status-cloudflare-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test realm-status resolver
+        run: node --test services/realm-status/core.test.mjs
+      - name: Bundle Cloudflare Worker
+        run: |
+          npx --yes wrangler@latest deploy --dry-run \
+            --config services/realm-status/wrangler.jsonc \
+            --outdir /tmp/forever-realm-status
