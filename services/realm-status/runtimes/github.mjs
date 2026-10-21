@@ -51,12 +51,12 @@ async function githubRequest(path, options = {}) {
   if (!token || !repository) throw new Error('GitHub runtime variables are missing');
 
   const response = await fetch(
-    `https://api.github.com/repos/\${repository}\${path}`,
+    `https://api.github.com/repos/${repository}${path}`,
     {
       ...options,
       headers: {
         accept: 'application/vnd.github+json',
-        authorization: `Bearer \${token}`,
+        authorization: `Bearer ${token}`,
         'x-github-api-version': '2022-11-28',
         'user-agent': 'ForeverRealmStatus/3.0 (github-actions)',
         ...(options.headers || {}),
@@ -68,7 +68,7 @@ async function githubRequest(path, options = {}) {
   if (!response.ok) {
     const body = await response.text();
     throw new Error(
-      `GitHub \${path} -> HTTP \${response.status}: \${body.slice(0, 300)}`,
+      `GitHub ${path} -> HTTP ${response.status}: ${body.slice(0, 300)}`,
     );
   }
 
@@ -78,11 +78,11 @@ async function githubRequest(path, options = {}) {
 
 const stateStore = {
   async get() {
-    const issue = await githubRequest(`/issues/\${STATE_ISSUE_NUMBER}`);
+    const issue = await githubRequest(`/issues/${STATE_ISSUE_NUMBER}`);
     return extractState(issue.body) || {};
   },
   async put(state) {
-    await githubRequest(`/issues/\${STATE_ISSUE_NUMBER}`, {
+    await githubRequest(`/issues/${STATE_ISSUE_NUMBER}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ body: stateBody(state) }),
