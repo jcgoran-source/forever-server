@@ -56,7 +56,7 @@ async function fetchText(url, { userAgent, fetchImpl = fetch, ...options } = {})
     },
     signal: AbortSignal.timeout(8000),
   });
-  if (!response.ok) throw new Error(`\${url} -> HTTP \${response.status}`);
+  if (!response.ok) throw new Error(`${url} -> HTTP ${response.status}`);
   return response.text();
 }
 
@@ -89,7 +89,7 @@ async function foreverDbProbe(profile, options) {
   try {
     const separator = source.url.includes('?') ? '&' : '?';
     const html = await fetchText(
-      `\${source.url}\${separator}_=\${nowMs}`,
+      `${source.url}${separator}_=${nowMs}`,
       { ...options, headers: { accept: 'text/html' } },
     );
     const text = htmlToText(html);
@@ -99,13 +99,13 @@ async function foreverDbProbe(profile, options) {
 
     const loginMatch = text.match(
       new RegExp(
-        `\${loginLabel}\\s+\${statusPattern}[\\s\\S]{0,220}?checked\\s+([0-9T:.+-]+Z?)`,
+        `${loginLabel}\\s+${statusPattern}[\\s\\S]{0,220}?checked\\s+([0-9T:.+-]+Z?)`,
         'i',
       ),
     );
     const realmMatch = text.match(
       new RegExp(
-        `\${realmLabel}\\s+\${statusPattern}[\\s\\S]{0,220}?checked\\s+([0-9T:.+-]+Z?)`,
+        `${realmLabel}\\s+${statusPattern}[\\s\\S]{0,220}?checked\\s+([0-9T:.+-]+Z?)`,
         'i',
       ),
     );
@@ -113,7 +113,7 @@ async function foreverDbProbe(profile, options) {
     const maintenanceLabel = escapeRegex(source.maintenanceLabel);
     const maintenanceMatch = text.match(
       new RegExp(
-        `\${maintenanceLabel}\\s*(.{0,400}?)(?:\${loginLabel}|$)`,
+        `${maintenanceLabel}\\s*(.{0,400}?)(?:${loginLabel}|$)`,
         'i',
       ),
     );
@@ -186,22 +186,22 @@ function classifyOfficialText(profile, text) {
 
   if (
     new RegExp(
-      `\\b\${subject}\\b.{0,100}\\b(is back|are back|back online|back up|is up|are up|re-?opened|online now)\\b`,
+      `\\b${subject}\\b.{0,100}\\b(is back|are back|back online|back up|is up|are up|re-?opened|online now)\\b`,
       'i',
     ).test(normalized) ||
     new RegExp(
-      `\\b(back online|back up|re-?opened)\\b.{0,100}\\b\${subject}\\b`,
+      `\\b(back online|back up|re-?opened)\\b.{0,100}\\b${subject}\\b`,
       'i',
     ).test(normalized)
   ) return 'online';
 
   if (
     new RegExp(
-      `\\b(take|taking|took|bring|bringing)\\b.{0,100}\\b\${subject}\\b.{0,80}\\b(offline|down)\\b`,
+      `\\b(take|taking|took|bring|bringing)\\b.{0,100}\\b${subject}\\b.{0,80}\\b(offline|down)\\b`,
       'i',
     ).test(normalized) ||
     new RegExp(
-      `\\b\${subject}\\b.{0,100}\\b(offline|down|shut ?down)\\b`,
+      `\\b${subject}\\b.{0,100}\\b(offline|down|shut ?down)\\b`,
       'i',
     ).test(normalized)
   ) return 'offline';
@@ -226,7 +226,7 @@ async function officialBlizzardSignal(profile, options) {
       let topic;
       try {
         topic = await fetchJson(
-          `\${profile.forum.baseUrl}/t/\${post.topic_id}.json`,
+          `${profile.forum.baseUrl}/t/${post.topic_id}.json`,
           options,
         );
       } catch {
@@ -246,8 +246,8 @@ async function officialBlizzardSignal(profile, options) {
         post_number: post.post_number || 1,
         title: topic?.title || 'Blizzard post',
         url:
-          `\${profile.forum.baseUrl}/t/\${topic?.slug || post?.slug || 'topic'}/` +
-          `\${post.topic_id}/\${post.post_number || 1}`,
+          `${profile.forum.baseUrl}/t/${topic?.slug || post?.slug || 'topic'}/` +
+          `${post.topic_id}/${post.post_number || 1}`,
         error: null,
       };
     }
@@ -293,7 +293,7 @@ export async function collectEvidence(
   const options = {
     fetchImpl,
     nowMs,
-    userAgent: `ForeverRealmStatus/3.0 (\${runtimeLabel})`,
+    userAgent: `ForeverRealmStatus/3.0 (${runtimeLabel})`,
   };
 
   const [loginTcp, realmTcp, foreverDb, official] = await Promise.all([
