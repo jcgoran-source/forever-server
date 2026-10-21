@@ -61,7 +61,7 @@ function durableStateStore(env, profile) {
     async get() {
       const response = await stub.fetch(url);
       if (!response.ok) {
-        throw new Error(`Durable Object state GET -> HTTP \${response.status}`);
+        throw new Error(`Durable Object state GET -> HTTP ${response.status}`);
       }
       return response.json();
     },
@@ -72,7 +72,7 @@ function durableStateStore(env, profile) {
         body: JSON.stringify(state),
       });
       if (!response.ok) {
-        throw new Error(`Durable Object state PUT -> HTTP \${response.status}`);
+        throw new Error(`Durable Object state PUT -> HTTP ${response.status}`);
       }
     },
   };
