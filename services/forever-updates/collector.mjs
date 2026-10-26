@@ -33,6 +33,7 @@ async function hydratePost(post, fetchImpl = fetch) {
     const full = await getJson(
       `${FORUM_BASE}/posts/${post.id}.json`,
       fetchImpl,
+      mentionRoleId,
     );
 
     return {
@@ -63,6 +64,7 @@ export async function collectForeverUpdates({
   fetchImpl = fetch,
   now = new Date(),
   onRelevantPost = null,
+  mentionRoleId = null,
 }) {
   if (!webhookUrl) {
     throw new Error('DISCORD_FOREVER_UPDATES_WEBHOOK_URL is not configured');
@@ -167,7 +169,7 @@ export async function collectForeverUpdates({
       await onRelevantPost(post);
     }
 
-    await sendUpdate(webhookUrl, post, fetchImpl);
+    await sendUpdate(webhookUrl, post, fetchImpl, mentionRoleId);
     fingerprints.add(fingerprint);
     sent += 1;
   }
