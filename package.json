@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check:blue": "node services/beta-blue-checker/check.mjs",
     "check:realm": "node services/realm-status/runtimes/github.mjs",
-    "test:realm": "node --test services/realm-status/*.test.mjs"
+    "test:realm": "node --test services/realm-status/*.test.mjs",
+    "test:updates": "node --test services/forever-updates/*.test.mjs",
+    "test": "node --test services/realm-status/*.test.mjs services/forever-updates/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
