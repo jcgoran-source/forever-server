@@ -34,7 +34,7 @@ const PROFILES = {
   live: {
     id: 'live',
     displayName: 'WoW Forever',
-    discordChannel: '#beta-realm-status',
+    discordChannel: '#forever-realm-status',
     launchAt: '2026-11-04T23:00:00.000Z',
     foreverDb: {
       url: 'https://foreverdb.net/status',
@@ -55,7 +55,7 @@ const PROFILES = {
       trackerUrl:
         'https://us.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.json',
       baseUrl: 'https://us.forums.blizzard.com/en/wow',
-      categoryId: 349,
+      categoryIds: [347, 349],
       subjectPattern: '(forever|realm(?:s)?|server(?:s)?)',
     },
     thresholds: {
