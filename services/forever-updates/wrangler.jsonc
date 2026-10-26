@@ -7,6 +7,9 @@
   "observability": {
     "enabled": true
   },
+  "vars": {
+    "FOREVER_TOOLS_ROLE_ID": "1564160683808129035"
+  },
   "triggers": {
     "crons": ["* * * * *"]
   },
