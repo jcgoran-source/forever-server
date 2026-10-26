@@ -73,6 +73,8 @@ Other behavior:
 
 Cloudflare secret: `DISCORD_FOREVER_UPDATES_WEBHOOK_URL`.
 
+All Discord outputs also support an optional shared `FOREVER_TOOLS_ROLE_ID`. When configured with a valid Discord role ID, the tool prepends that role mention and permits only that role to ping; when absent or invalid, mentions remain suppressed.
+
 ## forever-briefing → Discord `#forever-briefing`
 
 The change synthesizer consumes each qualifying Blizzard post from `forever-updates` after relevance filtering. It does not make a second request to the Blizzard tracker.
@@ -90,7 +92,7 @@ Briefings deliberately do not duplicate each raw bluepost. New changes accumulat
 
 The first implementation is deterministic rather than model-generated. It preserves the underlying Blizzard wording and source links instead of inventing a stronger interpretation than the source supports. A later semantic/LLM layer can operate on this generalized ledger without replacing the source-of-truth machinery.
 
-Cloudflare secret for Discord delivery: `DISCORD_FOREVER_BRIEFING_WEBHOOK_URL`.
+Cloudflare secret for Discord delivery: `DISCORD_FOREVER_BRIEFING_WEBHOOK_URL`. The shared `FOREVER_TOOLS_ROLE_ID` setting is inherited by this briefing output as well.
 
 If that secret is absent, synthesis and persistence continue normally; only Discord briefing delivery is paused, and pending changes are retained.
 
@@ -135,7 +137,7 @@ The authoritative Cloudflare Worker checks every **30 seconds** through a self-r
 
 A one-minute Cron Trigger remains as a watchdog. It verifies that the alarm loop has a near-future alarm and repairs the loop if necessary.
 
-Persistent state lives in a SQLite-backed Durable Object and Worker observability is enabled.
+Persistent state lives in a SQLite-backed Durable Object and Worker observability is enabled. Realm-status Discord messages also honor the optional shared `FOREVER_TOOLS_ROLE_ID` role mention.
 
 ### GitHub fallback
 
@@ -152,6 +154,10 @@ Repository secrets:
 - `DISCORD_REALM_STATUS_WEBHOOK_URL`
 - `DISCORD_WEBHOOK_URL` for the current Forever updates webhook
 - `DISCORD_FOREVER_BRIEFING_WEBHOOK_URL` for synthesized change briefings
+
+Non-secret runtime setting:
+
+- `FOREVER_TOOLS_ROLE_ID` — optional Discord role ID used to give all three tools a shared notification-role ping
 
 ## Local commands
 
