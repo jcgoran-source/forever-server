@@ -1,0 +1,40 @@
+name: Verify Forever Briefing Runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/.verify-forever-briefing'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Observe briefing state in scheduled collector
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set +e
+          timeout 85s npx --yes wrangler@latest tail forever-updates \
+            --format json \
+            --config services/forever-updates/wrangler.jsonc > /tmp/briefing-tail.log 2>&1
+          set -e
+          cat /tmp/briefing-tail.log
+          if ! grep -q '"entrypoint": "BriefingState"' /tmp/briefing-tail.log; then
+            echo "No BriefingState Durable Object access observed."
+            exit 1
+          fi
+          if ! grep -Eq 'No new Blizzard posts|Processed [0-9]+ new Blizzard post|Bootstrapped Forever update collector' /tmp/briefing-tail.log; then
+            echo "No successful scheduled Forever update poll observed."
+            exit 1
+          fi
+          echo "Observed briefing state in a successful scheduled Forever update poll."
