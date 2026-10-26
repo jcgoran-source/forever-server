@@ -2,10 +2,6 @@ name: Deploy Forever Updates to Cloudflare
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'services/forever-updates/.deploy-cloudflare'
 
 permissions:
   contents: read
@@ -23,7 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Test Forever update collector
+      - name: Test Forever updates and briefing
         run: node --test services/forever-updates/*.test.mjs services/forever-briefing/*.test.mjs
       - name: Deploy Cloudflare Worker
         env:
