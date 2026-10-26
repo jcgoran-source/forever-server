@@ -14,6 +14,8 @@ The repository currently contains two Cloudflare runtimes and a third synthesis 
 forever-server/
 ├── services/
 │   ├── forever-briefing/
+│   │   ├── backfill.mjs
+│   │   ├── backfill.test.mjs
 │   │   ├── discord.mjs
 │   │   ├── synthesizer.mjs
 │   │   └── synthesizer.test.mjs
@@ -92,6 +94,21 @@ The first implementation is deterministic rather than model-generated. It preser
 Cloudflare secret for Discord delivery: `DISCORD_FOREVER_BRIEFING_WEBHOOK_URL`.
 
 If that secret is absent, synthesis and persistence continue normally; only Discord briefing delivery is paused, and pending changes are retained.
+
+### Controlled historical backfill
+
+`forever-briefing/backfill.mjs` provides an intentionally one-shot historical import path for testing or seeding the ledger. A backfill is armed temporarily with a unique key, a start timestamp, and a hard item cap. It:
+
+- reads the live Blizzard Blue Tracker and hydrates candidate posts
+- applies the same Forever-relevance rules as the live collector
+- suppresses mirrored duplicate announcements
+- writes imported records to the persistent briefing ledger as historical/non-pending changes
+- emits one explicitly labeled historical digest
+- persists the unique backfill key only after successful Discord delivery
+
+The completed key makes retries idempotent. Backfill configuration is removed from the deployed Worker after the run; the reusable code and regression tests remain.
+
+The first controlled test used `prelaunch-2026-10-20-v1`, beginning October 20, 2026 with a maximum of 12 unique Blizzard items. It completed successfully.
 
 ## realm-status → Discord `#forever-realm-status`
 
