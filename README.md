@@ -2,16 +2,21 @@
 
 Live utility infrastructure for **World of Warcraft: Forever**.
 
-The repository currently contains two peer services:
+The repository currently contains two Cloudflare runtimes and a third synthesis subsystem:
 
 - `realm-status` — live service monitoring and Discord status alerts.
 - `forever-updates` — Blizzard-authored Forever news, blueposts, hotfixes, operational notices, and official forum replies.
+- `forever-briefing` — deterministic change synthesis fed directly by `forever-updates`; it does not poll Blizzard independently.
 
 ## Architecture
 
 ```text
 forever-server/
 ├── services/
+│   ├── forever-briefing/
+│   │   ├── discord.mjs
+│   │   ├── synthesizer.mjs
+│   │   └── synthesizer.test.mjs
 │   ├── forever-updates/
 │   │   ├── collector.mjs
 │   │   ├── core.mjs
@@ -66,6 +71,28 @@ Other behavior:
 
 Cloudflare secret: `DISCORD_FOREVER_UPDATES_WEBHOOK_URL`.
 
+## forever-briefing → Discord `#forever-briefing`
+
+The change synthesizer consumes each qualifying Blizzard post from `forever-updates` after relevance filtering. It does not make a second request to the Blizzard tracker.
+
+Each update is normalized into a persistent change record containing:
+
+- source post ID, title, timestamp, and source URL
+- deterministic domain classification: Classes, Professions, Dungeons & Raids, PvP, Quests & World, Items & Economy, UI & Systems, Launch & Servers, Known Issues & Fixes, or General
+- a concise source-grounded summary
+- priority
+- launch-plan relevance and explicit focus tags
+
+Current launch-plan focus rules recognize Mage/Frost, launch/server conditions, the early Horde route, planned professions, early dungeons, and PvP/layering.
+
+Briefings deliberately do not duplicate each raw bluepost. New changes accumulate in a separate SQLite-backed `BriefingState` Durable Object. After **10 minutes with no new qualifying Blizzard post**, the pending changes are grouped into one briefing. If Blizzard posts continuously, a briefing is forced after six hours.
+
+The first implementation is deterministic rather than model-generated. It preserves the underlying Blizzard wording and source links instead of inventing a stronger interpretation than the source supports. A later semantic/LLM layer can operate on this ledger without replacing the source-of-truth machinery.
+
+Cloudflare secret for Discord delivery: `DISCORD_FOREVER_BRIEFING_WEBHOOK_URL`.
+
+If that secret is absent, synthesis and persistence continue normally; only Discord briefing delivery is paused, and pending changes are retained.
+
 ## realm-status → Discord `#forever-realm-status`
 
 The realm sentry separates environment configuration, evidence resolution, and runtime/state adapters.
@@ -108,6 +135,7 @@ Repository secrets:
 - `CLOUDFLARE_API_TOKEN`
 - `DISCORD_REALM_STATUS_WEBHOOK_URL`
 - `DISCORD_WEBHOOK_URL` for the current Forever updates webhook
+- `DISCORD_FOREVER_BRIEFING_WEBHOOK_URL` for synthesized change briefings
 
 ## Local commands
 
@@ -115,6 +143,7 @@ Repository secrets:
 npm run test
 npm run test:realm
 npm run test:updates
+npm run test:briefing
 npm run check:realm
 ```
 
