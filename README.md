@@ -64,11 +64,9 @@ States are **online**, **offline**, **degraded**, and **unknown**. Failed hosted
 
 The Worker is cron-only and exposes no public route. It silently bootstraps its own state on first execution, so it can be validated alongside the GitHub fallback without announcing a fake initial transition.
 
-### GitHub Actions (temporary fallback)
+### GitHub Actions (manual fallback)
 
-The existing GitHub-backed sentry remains scheduled until Cloudflare is deployed and verified. Its issue-backed state is only a runtime adapter now; the evidence and decision logic are shared with Cloudflare.
-
-After successful cutover, disable the GitHub schedule to prevent duplicate transition notifications.
+Cloudflare is now the authoritative scheduled runtime. The GitHub-backed sentry remains available only as a manual fallback; its issue-backed state is a separate runtime adapter sharing the same evidence and decision logic.
 
 ### Cloudflare deployment
 

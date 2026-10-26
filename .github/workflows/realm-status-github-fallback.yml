@@ -1,13 +1,6 @@
 name: Forever Realm Status (GitHub fallback)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'services/realm-status/**'
-      - '.github/workflows/realm-status-github-fallback.yml'
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
