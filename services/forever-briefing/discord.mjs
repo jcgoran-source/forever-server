@@ -13,33 +13,40 @@ function itemLine(change) {
         ? '•'
         : '·';
 
-  return `${marker} [${clip(change.title, 120)}](${change.url}) — ${clip(change.summary, 260)}`;
+  return `${marker} [${clip(change.title, 96)}](${change.url}) — ${clip(change.summary, 180)}`;
 }
 
 export function briefingPayload(briefing) {
   const fields = [];
+  let fieldBudget = 4700;
 
-  for (const group of briefing.groups.slice(0, 12)) {
+  for (const group of briefing.groups.slice(0, 10)) {
     const lines = [];
     for (const item of group.items) {
       const candidate = itemLine(item);
-      if ((lines.join('\n').length + candidate.length + 1) > 980) {
-        lines.push('…additional changes omitted from this field.');
+      const nextLength = lines.join('\n').length + candidate.length + 1;
+      if (nextLength > 900) {
+        lines.push('…additional changes omitted from this category.');
         break;
       }
       lines.push(candidate);
     }
 
+    const value = lines.join('\n') || 'No summarized changes.';
+    const cost = group.category.length + value.length;
+    if (cost > fieldBudget) break;
+
     fields.push({
       name: group.category,
-      value: lines.join('\n') || 'No summarized changes.',
+      value,
       inline: false,
     });
+    fieldBudget -= cost;
   }
 
-  if (briefing.focus.length) {
+  if (briefing.focus.length && fieldBudget > 300) {
     const focusLines = [];
-    for (const change of briefing.focus.slice(0, 8)) {
+    for (const change of briefing.focus.slice(0, 6)) {
       const tags = change.focus.tags?.length
         ? ` [${change.focus.tags.join(', ')}]`
         : '';
@@ -47,29 +54,45 @@ export function briefingPayload(briefing) {
         `• **${change.focus.relevance.toUpperCase()}**${tags} — ` +
         `${change.focus.reason || change.title}`;
 
-      if ((focusLines.join('\n').length + line.length + 1) > 980) break;
+      if ((focusLines.join('\n').length + line.length + 1) > 800) break;
       focusLines.push(line);
     }
 
-    fields.push({
-      name: 'Launch-plan relevance',
-      value: focusLines.join('\n'),
-      inline: false,
-    });
+    const value = focusLines.join('\n');
+    if (value && ('Launch-plan relevance'.length + value.length) <= fieldBudget) {
+      fields.push({
+        name: 'Launch-plan relevance',
+        value,
+        inline: false,
+      });
+    }
   }
+
+  const historical = briefing.kind === 'historical';
+  const title = historical
+    ? `Forever historical briefing · #${briefing.sequence}`
+    : `Forever change briefing · #${briefing.sequence}`;
+
+  const windowText = briefing.source_window
+    ? ` Source window: ${briefing.source_window}.`
+    : '';
+
+  const description = historical
+    ? `Controlled historical backfill: ${briefing.change_count} Blizzard-authored Forever update${briefing.change_count === 1 ? '' : 's'} synthesized into the ledger.${windowText}`
+    : `${briefing.change_count} Blizzard-authored Forever update${briefing.change_count === 1 ? '' : 's'} synthesized since the previous briefing.`;
 
   return {
     username: 'Forever Briefing',
     allowed_mentions: { parse: [] },
     embeds: [{
-      title: `Forever change briefing · #${briefing.sequence}`,
-      description:
-        `${briefing.change_count} Blizzard-authored Forever update` +
-        `${briefing.change_count === 1 ? '' : 's'} synthesized since the previous briefing.`,
+      title,
+      description: clip(description, 900),
       fields,
       timestamp: briefing.generated_at,
       footer: {
-        text: 'Deterministic synthesis · source: Blizzard-authored posts',
+        text: historical
+          ? 'Controlled historical backfill · deterministic synthesis'
+          : 'Deterministic synthesis · source: Blizzard-authored posts',
       },
     }],
   };
