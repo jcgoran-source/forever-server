@@ -61,6 +61,7 @@ export class SentryState extends DurableObject {
       },
       tcpConnect: cloudflareTcpConnect,
       webhookUrl: this.env.DISCORD_REALM_STATUS_WEBHOOK_URL,
+      mentionRoleId: this.env.FOREVER_TOOLS_ROLE_ID,
       runtimeLabel: 'cloudflare-worker',
     });
   }
