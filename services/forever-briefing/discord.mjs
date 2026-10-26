@@ -44,29 +44,6 @@ export function briefingPayload(briefing) {
     fieldBudget -= cost;
   }
 
-  if (briefing.focus.length && fieldBudget > 300) {
-    const focusLines = [];
-    for (const change of briefing.focus.slice(0, 6)) {
-      const tags = change.focus.tags?.length
-        ? ` [${change.focus.tags.join(', ')}]`
-        : '';
-      const line =
-        `• **${change.focus.relevance.toUpperCase()}**${tags} — ` +
-        `${change.focus.reason || change.title}`;
-
-      if ((focusLines.join('\n').length + line.length + 1) > 800) break;
-      focusLines.push(line);
-    }
-
-    const value = focusLines.join('\n');
-    if (value && ('Launch-plan relevance'.length + value.length) <= fieldBudget) {
-      fields.push({
-        name: 'Launch-plan relevance',
-        value,
-        inline: false,
-      });
-    }
-  }
 
   const historical = briefing.kind === 'historical';
   const title = historical
