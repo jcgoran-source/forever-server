@@ -72,7 +72,7 @@ async function ingestBriefingPost(store, post) {
   if (!result.duplicate) {
     await store.put(result.state);
     console.log(
-      `Synthesized Blizzard post ${post.id}: ${result.change.primary_category} · ${result.change.priority} · focus=${result.change.focus.relevance}.`,
+      `Synthesized Blizzard post ${post.id}: ${result.change.primary_category} · ${result.change.priority}.`,
     );
   }
 
