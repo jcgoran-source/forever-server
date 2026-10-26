@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test realm-status resolver
-        run: node --test services/realm-status/core.test.mjs
+        run: node --test services/realm-status/*.test.mjs
       - name: Bundle Cloudflare Worker
         run: |
           npx --yes wrangler@latest deploy --dry-run \
