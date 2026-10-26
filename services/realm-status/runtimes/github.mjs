@@ -103,6 +103,7 @@ async function main() {
     stateStore,
     tcpConnect: nodeTcpConnect,
     webhookUrl,
+    mentionRoleId: process.env.FOREVER_TOOLS_ROLE_ID,
     runtimeLabel: 'github-actions',
   });
 }
