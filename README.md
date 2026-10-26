@@ -82,14 +82,13 @@ Each update is normalized into a persistent change record containing:
 - source post ID, title, timestamp, and source URL
 - deterministic domain classification: Classes, Professions, Dungeons & Raids, PvP, Quests & World, Items & Economy, UI & Systems, Launch & Servers, Known Issues & Fixes, or General
 - a concise source-grounded summary
-- priority
-- launch-plan relevance and explicit focus tags
+- general priority
 
-Current launch-plan focus rules recognize Mage/Frost, launch/server conditions, the early Horde route, planned professions, early dungeons, and PvP/layering.
+The briefing layer is deliberately **character- and plan-agnostic**. It does not assign special relevance to a particular class, faction, profession, route, realm type, or character.
 
-Briefings deliberately do not duplicate each raw bluepost. New changes accumulate in a separate SQLite-backed `BriefingState` Durable Object. After **10 minutes with no new qualifying Blizzard post**, the pending changes are grouped into one briefing. If Blizzard posts continuously, a briefing is forced after six hours.
+Briefings deliberately do not duplicate each raw bluepost. New changes accumulate in a separate SQLite-backed `BriefingState` Durable Object. The first pending update opens a **four-hour accumulation window**; all subsequent Blizzard updates during that window join the same briefing without resetting the clock. If only one update arrives, it still waits for the four-hour window rather than producing an immediate single-item briefing.
 
-The first implementation is deterministic rather than model-generated. It preserves the underlying Blizzard wording and source links instead of inventing a stronger interpretation than the source supports. A later semantic/LLM layer can operate on this ledger without replacing the source-of-truth machinery.
+The first implementation is deterministic rather than model-generated. It preserves the underlying Blizzard wording and source links instead of inventing a stronger interpretation than the source supports. A later semantic/LLM layer can operate on this generalized ledger without replacing the source-of-truth machinery.
 
 Cloudflare secret for Discord delivery: `DISCORD_FOREVER_BRIEFING_WEBHOOK_URL`.
 
