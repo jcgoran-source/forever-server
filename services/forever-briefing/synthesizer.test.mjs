@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  BRIEFING_INTERVAL_MS,
   briefingDue,
   buildBriefing,
   ingestPostIntoState,
@@ -25,14 +26,14 @@ function post(overrides = {}) {
   };
 }
 
-test('classifies a Frost Mage change and marks launch-plan relevance high', () => {
+test('classifies class changes without personalized focus metadata', () => {
   const change = synthesizePost(post());
   assert.ok(change.categories.includes('Classes'));
-  assert.equal(change.focus.relevance, 'high');
-  assert.ok(change.focus.tags.includes('Mage/Frost'));
+  assert.equal(change.priority, 'medium');
+  assert.equal(Object.hasOwn(change, 'focus'), false);
 });
 
-test('classifies launch operations separately from class changes', () => {
+test('classifies launch operations as a general Forever domain', () => {
   const change = synthesizePost(post({
     id: 31000002,
     topic_title: 'WoW Forever Launch Maintenance',
@@ -40,12 +41,16 @@ test('classifies launch operations separately from class changes', () => {
   }));
 
   assert.ok(change.categories.includes('Launch & Servers'));
-  assert.equal(change.focus.relevance, 'high');
-  assert.ok(change.focus.tags.includes('Launch operations'));
+  assert.equal(change.priority, 'high');
+  assert.equal(Object.hasOwn(change, 'focus'), false);
 });
 
 test('ingestion is idempotent by Blizzard post id', () => {
-  const first = ingestPostIntoState({}, post(), new Date('2026-10-26T12:01:00Z'));
+  const first = ingestPostIntoState(
+    {},
+    post(),
+    new Date('2026-10-26T12:01:00Z'),
+  );
   const second = ingestPostIntoState(
     first.state,
     post(),
@@ -58,24 +63,25 @@ test('ingestion is idempotent by Blizzard post id', () => {
   assert.equal(second.state.pending_change_ids.length, 1);
 });
 
-test('briefing waits for ten quiet minutes', () => {
+test('briefing waits four hours from the first pending update', () => {
   const ingested = ingestPostIntoState(
     {},
     post(),
     new Date('2026-10-26T12:00:00Z'),
   );
 
+  assert.equal(BRIEFING_INTERVAL_MS, 4 * 60 * 60 * 1000);
   assert.equal(
-    briefingDue(ingested.state, Date.parse('2026-10-26T12:09:59Z')),
+    briefingDue(ingested.state, Date.parse('2026-10-26T15:59:59Z')),
     false,
   );
   assert.equal(
-    briefingDue(ingested.state, Date.parse('2026-10-26T12:10:00Z')),
+    briefingDue(ingested.state, Date.parse('2026-10-26T16:00:00Z')),
     true,
   );
 });
 
-test('briefing groups changes and exposes focus items', () => {
+test('later updates join the batch without resetting its four-hour clock', () => {
   let state = ingestPostIntoState(
     {},
     post(),
@@ -87,24 +93,48 @@ test('briefing groups changes and exposes focus items', () => {
     post({
       id: 31000003,
       topic_title: 'Profession Recipe Updates',
-      cooked: '<p>Tailoring recipes have updated material requirements.</p>',
+      cooked: '<p>Profession recipes have updated material requirements.</p>',
+    }),
+    new Date('2026-10-26T15:30:00Z'),
+  ).state;
+
+  assert.equal(state.first_pending_at, '2026-10-26T12:00:00.000Z');
+  assert.equal(
+    briefingDue(state, Date.parse('2026-10-26T16:00:00Z')),
+    true,
+  );
+});
+
+test('briefing groups general changes by domain', () => {
+  let state = ingestPostIntoState(
+    {},
+    post(),
+    new Date('2026-10-26T12:00:00Z'),
+  ).state;
+
+  state = ingestPostIntoState(
+    state,
+    post({
+      id: 31000004,
+      topic_title: 'Profession Recipe Updates',
+      cooked: '<p>Profession recipes have updated material requirements.</p>',
     }),
     new Date('2026-10-26T12:01:00Z'),
   ).state;
 
   const briefing = buildBriefing(
     state,
-    new Date('2026-10-26T12:11:00Z'),
+    new Date('2026-10-26T16:00:00Z'),
   );
 
   assert.equal(briefing.change_count, 2);
   assert.ok(briefing.groups.some((group) => group.category === 'Classes'));
   assert.ok(briefing.groups.some((group) => group.category === 'Professions'));
-  assert.ok(briefing.focus.length >= 2);
+  assert.equal(Object.hasOwn(briefing, 'focus'), false);
 
   const cleared = markBriefingSent(
     state,
-    new Date('2026-10-26T12:11:00Z'),
+    new Date('2026-10-26T16:00:00Z'),
   );
   assert.deepEqual(cleared.pending_change_ids, []);
   assert.equal(cleared.brief_sequence, 1);
