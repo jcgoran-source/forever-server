@@ -26,7 +26,6 @@ jobs:
           set +e
           timeout 85s npx --yes wrangler@latest tail forever-updates \
             --format json \
-            --status ok \
             --config services/forever-updates/wrangler.jsonc > /tmp/updates-tail.log 2>&1
           set -e
           cat /tmp/updates-tail.log
