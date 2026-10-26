@@ -126,7 +126,12 @@ async function maybeRunHistoricalBackfill(store, webhookUrl, env) {
     };
   }
 
-  const delivery = await sendBriefing(webhookUrl, result.briefing);
+  const delivery = await sendBriefing(
+    webhookUrl,
+    result.briefing,
+    fetch,
+    env.FOREVER_TOOLS_ROLE_ID,
+  );
   if (!delivery.sent) {
     throw new Error(
       `Historical briefing backfill ${key} is ready but the briefing webhook is not configured.`,
@@ -155,7 +160,7 @@ async function maybeRunHistoricalBackfill(store, webhookUrl, env) {
   };
 }
 
-async function maybeDeliverBriefing(store, webhookUrl) {
+async function maybeDeliverBriefing(store, webhookUrl, mentionRoleId = null) {
   const current = await store.get();
 
   if (!briefingDue(current)) {
@@ -163,7 +168,12 @@ async function maybeDeliverBriefing(store, webhookUrl) {
   }
 
   const briefing = buildBriefing(current);
-  const result = await sendBriefing(webhookUrl, briefing);
+  const result = await sendBriefing(
+    webhookUrl,
+    briefing,
+    fetch,
+    mentionRoleId,
+  );
 
   if (!result.sent) {
     console.log(
@@ -190,6 +200,7 @@ export default {
         stateStore: updatesStore,
         webhookUrl: env.DISCORD_FOREVER_UPDATES_WEBHOOK_URL,
         onRelevantPost: (post) => ingestBriefingPost(briefingStore, post),
+        mentionRoleId: env.FOREVER_TOOLS_ROLE_ID,
       });
 
       await maybeRunHistoricalBackfill(
@@ -201,6 +212,7 @@ export default {
       await maybeDeliverBriefing(
         briefingStore,
         env.DISCORD_FOREVER_BRIEFING_WEBHOOK_URL,
+        env.FOREVER_TOOLS_ROLE_ID,
       );
     })());
   },
