@@ -6,11 +6,11 @@ on:
     paths:
       - 'services/forever-updates/**'
       - 'services/forever-briefing/**'
-      - 'services/forever-briefing/**'
       - '.github/workflows/forever-updates-cloudflare-build.yml'
   pull_request:
     paths:
       - 'services/forever-updates/**'
+      - 'services/forever-briefing/**'
       - '.github/workflows/forever-updates-cloudflare-build.yml'
 
 permissions:
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Test Forever update collector
+      - name: Test Forever updates and briefing
         run: node --test services/forever-updates/*.test.mjs services/forever-briefing/*.test.mjs
       - name: Bundle Cloudflare Worker
         run: |
