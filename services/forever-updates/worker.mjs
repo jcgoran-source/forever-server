@@ -1,11 +1,14 @@
 import { DurableObject } from 'cloudflare:workers';
 
 import { collectForeverUpdates } from './collector.mjs';
+import { runHistoricalBackfill } from '../forever-briefing/backfill.mjs';
 import {
   briefingDue,
   buildBriefing,
   ingestPostIntoState,
   markBriefingSent,
+  markHistoricalBriefingSent,
+  normalizeBriefingState,
 } from '../forever-briefing/synthesizer.mjs';
 import { sendBriefing } from '../forever-briefing/discord.mjs';
 
@@ -76,6 +79,82 @@ async function ingestBriefingPost(store, post) {
   return result;
 }
 
+async function maybeRunHistoricalBackfill(store, webhookUrl, env) {
+  const key = env.BRIEFING_BACKFILL_KEY;
+  const since = env.BRIEFING_BACKFILL_SINCE;
+
+  if (!key || !since) {
+    return { configured: false, ran: false };
+  }
+
+  const current = normalizeBriefingState(await store.get());
+  if (current.completed_backfills.includes(key)) {
+    console.log(`Historical briefing backfill ${key} already completed; skipping.`);
+    return { configured: true, ran: false, completed: true };
+  }
+
+  const limit = Math.max(
+    1,
+    Math.min(50, Number(env.BRIEFING_BACKFILL_LIMIT || 12) || 12),
+  );
+
+  const result = await runHistoricalBackfill({
+    rawState: current,
+    since,
+    limit,
+  });
+
+  if (!result.imported_count) {
+    const now = new Date();
+    const completed = {
+      ...result.state,
+      completed_backfills: [
+        ...result.state.completed_backfills.filter((value) => value !== key),
+        key,
+      ].slice(-50),
+      updated_at: now.toISOString(),
+    };
+    await store.put(completed);
+    console.log(
+      `Historical briefing backfill ${key} found no new ledger records; marked complete.`,
+    );
+    return {
+      configured: true,
+      ran: true,
+      completed: true,
+      imported_count: 0,
+    };
+  }
+
+  const delivery = await sendBriefing(webhookUrl, result.briefing);
+  if (!delivery.sent) {
+    throw new Error(
+      `Historical briefing backfill ${key} is ready but the briefing webhook is not configured.`,
+    );
+  }
+
+  const finalState = markHistoricalBriefingSent(result.state, key);
+  await store.put(finalState);
+
+  console.log(JSON.stringify({
+    historical_backfill: key,
+    source_since: since,
+    tracker_window_count: result.tracker_window_count,
+    selected_count: result.selected_count,
+    imported_count: result.imported_count,
+    briefing_sequence: result.briefing.sequence,
+    imported_posts: result.imported_posts,
+  }, null, 2));
+
+  return {
+    configured: true,
+    ran: true,
+    completed: true,
+    imported_count: result.imported_count,
+    briefing: result.briefing,
+  };
+}
+
 async function maybeDeliverBriefing(store, webhookUrl) {
   const current = await store.get();
 
@@ -112,6 +191,12 @@ export default {
         webhookUrl: env.DISCORD_FOREVER_UPDATES_WEBHOOK_URL,
         onRelevantPost: (post) => ingestBriefingPost(briefingStore, post),
       });
+
+      await maybeRunHistoricalBackfill(
+        briefingStore,
+        env.DISCORD_FOREVER_BRIEFING_WEBHOOK_URL,
+        env,
+      );
 
       await maybeDeliverBriefing(
         briefingStore,
