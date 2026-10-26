@@ -21,10 +21,10 @@ jobs:
         with:
           node-version: '22'
       - name: Test realm-status resolver
-        run: node --test services/realm-status/core.test.mjs
+        run: node --test services/realm-status/*.test.mjs
       - name: Probe Forever realm services
         env:
-          FOREVER_ENV: beta
+          FOREVER_ENV: live
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STATE_ISSUE_NUMBER: '1'
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
