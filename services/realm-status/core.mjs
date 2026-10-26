@@ -181,7 +181,10 @@ export function normalizeState(raw, profileId) {
 
 export function evaluateObservation(profile, previousRaw, observed, nowIso) {
   const previous = normalizeState(previousRaw, profile.id);
-  const isBootstrap = !previousRaw || Object.keys(previousRaw).length === 0;
+  const isBootstrap =
+    !previousRaw ||
+    Object.keys(previousRaw).length === 0 ||
+    previousRaw.profile !== profile.id;
 
   if (observed.status === 'unknown') {
     const nextStreak = previous.unknown_streak + 1;
