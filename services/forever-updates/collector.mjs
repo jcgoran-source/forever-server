@@ -33,7 +33,6 @@ async function hydratePost(post, fetchImpl = fetch) {
     const full = await getJson(
       `${FORUM_BASE}/posts/${post.id}.json`,
       fetchImpl,
-      mentionRoleId,
     );
 
     return {
@@ -126,6 +125,7 @@ export async function collectForeverUpdates({
         newestAvailableId,
       },
       fetchImpl,
+      mentionRoleId,
     );
   }
 
