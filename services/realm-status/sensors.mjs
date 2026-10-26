@@ -291,7 +291,13 @@ async function officialBlizzardSignal(profile, options) {
       } catch {
         continue;
       }
-      if (Number(topic?.category_id) !== profile.forum.categoryId) continue;
+      const allowedCategories =
+        profile.forum.categoryIds ||
+        (profile.forum.categoryId ? [profile.forum.categoryId] : []);
+      if (
+        allowedCategories.length &&
+        !allowedCategories.includes(Number(topic?.category_id))
+      ) continue;
 
       const text = [topic?.title, post?.cooked, post?.excerpt].filter(Boolean).join(' ');
       const signal = classifyOfficialText(profile, htmlToText(text));
