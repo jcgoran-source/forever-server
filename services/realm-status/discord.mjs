@@ -27,9 +27,19 @@ function sourceSummary(diagnostics) {
   return { dbText, directText, officialText };
 }
 
+function roleMention(roleId) {
+  const id = /^\d{15,22}$/.test(String(roleId || '').trim())
+    ? String(roleId).trim()
+    : null;
+  return {
+    content: id ? `<@&${id}>` : undefined,
+    allowed_mentions: id ? { parse: [], roles: [id] } : { parse: [] },
+  };
+}
+
 export async function sendDiscord({
   webhookUrl, kind, profile, observed, previous, diagnostics,
-  runtimeLabel, fetchImpl = fetch,
+  runtimeLabel, mentionRoleId = null, fetchImpl = fetch,
 }) {
   if (!webhookUrl) {
     throw new Error('DISCORD_REALM_STATUS_WEBHOOK_URL is not configured');
@@ -56,9 +66,11 @@ export async function sendDiscord({
   }
 
   const summary = sourceSummary(diagnostics);
+  const mention = roleMention(mentionRoleId);
   const payload = {
     username: 'Forever Realm Sentry',
-    allowed_mentions: { parse: [] },
+    content: mention.content,
+    allowed_mentions: mention.allowed_mentions,
     embeds: [{
       title,
       description: description.slice(0, 4096),
