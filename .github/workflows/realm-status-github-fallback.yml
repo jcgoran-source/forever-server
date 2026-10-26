@@ -27,6 +27,7 @@ jobs:
           FOREVER_ENV: live
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STATE_ISSUE_NUMBER: '1'
+          FOREVER_TOOLS_ROLE_ID: '1564160683808129035'
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           DISCORD_REALM_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_REALM_STATUS_WEBHOOK_URL }}
         run: node services/realm-status/runtimes/github.mjs
