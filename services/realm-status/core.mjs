@@ -13,6 +13,31 @@ export function foreverDbState(source) {
 
 export function resolveStatus(profile, diagnostics) {
   const { foreverDb, loginTcp, realmTcp, official } = diagnostics;
+
+  const launchMs = Date.parse(profile.launchAt || '');
+  if (
+    Number.isFinite(launchMs) &&
+    Number.isFinite(diagnostics.now_ms) &&
+    diagnostics.now_ms < launchMs
+  ) {
+    const loginEvidence =
+      foreverDb?.login_fresh || loginTcp?.up
+        ? 'Live login infrastructure is answering.'
+        : 'Live login infrastructure is not currently confirmed.';
+
+    return {
+      status: 'prelaunch',
+      confidence: foreverDb?.login_fresh || loginTcp?.up ? 'high' : 'medium',
+      reason:
+        `The Forever beta has ended; live gameplay opens at ${profile.launchAt}. ${loginEvidence}`,
+      evidence: {
+        foreverdb: foreverDb?.login_fresh ? 'login-positive' : 'inconclusive',
+        direct_login: loginTcp?.up ? 'positive' : 'inconclusive',
+        direct_realm: 'not-yet-applicable',
+        official: official?.signal || 'none',
+      },
+    };
+  }
   const dbState = foreverDbState(foreverDb);
   const directOnline = Boolean(loginTcp?.up && realmTcp?.up);
   const officialVoteIsFresh =
@@ -139,7 +164,7 @@ export function resolveStatus(profile, diagnostics) {
 export function normalizeState(raw, profileId) {
   const state = raw && typeof raw === 'object' ? raw : {};
   const known =
-    ['online', 'offline', 'degraded'].includes(state.status)
+    ['online', 'offline', 'degraded', 'prelaunch'].includes(state.status)
       ? state.status
       : state.confirmed_status;
 
@@ -219,5 +244,6 @@ export function statusLabel(value) {
   if (value === 'online') return 'ONLINE';
   if (value === 'offline') return 'OFFLINE';
   if (value === 'degraded') return 'DEGRADED';
+  if (value === 'prelaunch') return 'PRE-LAUNCH';
   return 'UNKNOWN';
 }
