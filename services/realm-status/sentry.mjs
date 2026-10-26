@@ -8,7 +8,7 @@ function statesEqual(a, b) {
 
 export async function executeSentry({
   profile, stateStore, tcpConnect, webhookUrl, runtimeLabel,
-  fetchImpl = fetch, now = new Date(),
+  mentionRoleId = null, fetchImpl = fetch, now = new Date(),
 }) {
   const nowIso = now.toISOString();
   const nowMs = now.getTime();
@@ -34,7 +34,7 @@ export async function executeSentry({
   if (decision.action) {
     await sendDiscord({
       webhookUrl, kind: decision.action, profile, observed,
-      previous: decision.previous, diagnostics, runtimeLabel, fetchImpl,
+      previous: decision.previous, diagnostics, runtimeLabel, mentionRoleId, fetchImpl,
     });
   }
 
