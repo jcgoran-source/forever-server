@@ -1,3 +1,13 @@
+function roleMention(roleId) {
+  const id = /^\d{15,22}$/.test(String(roleId || '').trim())
+    ? String(roleId).trim()
+    : null;
+  return {
+    content: id ? `<@&${id}>` : undefined,
+    allowed_mentions: id ? { parse: [], roles: [id] } : { parse: [] },
+  };
+}
+
 function clip(value, max) {
   const text = String(value || '');
   return text.length <= max
@@ -16,7 +26,7 @@ function itemLine(change) {
   return `${marker} [${clip(change.title, 96)}](${change.url}) — ${clip(change.summary, 180)}`;
 }
 
-export function briefingPayload(briefing) {
+export function briefingPayload(briefing, mentionRoleId = null) {
   const fields = [];
   let fieldBudget = 4700;
 
@@ -58,9 +68,12 @@ export function briefingPayload(briefing) {
     ? `Controlled historical backfill: ${briefing.change_count} Blizzard-authored Forever update${briefing.change_count === 1 ? '' : 's'} synthesized into the ledger.${windowText}`
     : `${briefing.change_count} Blizzard-authored Forever update${briefing.change_count === 1 ? '' : 's'} synthesized since the previous briefing.`;
 
+  const mention = roleMention(mentionRoleId);
+
   return {
     username: 'Forever Briefing',
-    allowed_mentions: { parse: [] },
+    content: mention.content,
+    allowed_mentions: mention.allowed_mentions,
     embeds: [{
       title,
       description: clip(description, 900),
@@ -79,6 +92,7 @@ export async function sendBriefing(
   webhookUrl,
   briefing,
   fetchImpl = fetch,
+  mentionRoleId = null,
 ) {
   if (!webhookUrl) {
     return { sent: false, reason: 'webhook-missing' };
@@ -91,7 +105,7 @@ export async function sendBriefing(
       'content-type': 'application/json',
       'user-agent': 'ForeverBriefing/1.0 (cloudflare-worker)',
     },
-    body: JSON.stringify(briefingPayload(briefing)),
+    body: JSON.stringify(briefingPayload(briefing, mentionRoleId)),
     signal: AbortSignal.timeout(8000),
   });
 
