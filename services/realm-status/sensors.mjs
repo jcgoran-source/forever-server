@@ -82,6 +82,118 @@ function parseCheckedAt(match) {
   return Number.isFinite(value) ? new Date(value).toISOString() : null;
 }
 
+function sourceLabels(source, key) {
+  const plural = source?.[`${key}Labels`];
+  if (Array.isArray(plural) && plural.length) return plural;
+  const singular = source?.[`${key}Label`];
+  return singular ? [singular] : [];
+}
+
+function findStatusMatch(text, labels, statusPattern) {
+  for (const label of labels) {
+    const escaped = escapeRegex(label);
+    const match = text.match(
+      new RegExp(
+        `${escaped}\\s*:?\\s*${statusPattern}`,
+        'i',
+      ),
+    );
+    if (match) return { label, match };
+  }
+  return null;
+}
+
+function findTimestampMatch(text, label, statusPattern) {
+  if (!label) return null;
+  const escaped = escapeRegex(label);
+  return text.match(
+    new RegExp(
+      `${escaped}\\s*:?\\s*${statusPattern}[\\s\\S]{0,220}?checked\\s+([0-9T:.+-]+Z?)`,
+      'i',
+    ),
+  );
+}
+
+export function parseForeverDbStatusText(profile, text, nowMs = Date.now()) {
+  const source = profile.foreverDb;
+  const statusPattern = '(Not answering|Answering|Offline|Online|Down|Up)';
+  const loginFound = findStatusMatch(
+    text,
+    sourceLabels(source, 'login'),
+    statusPattern,
+  );
+  const realmFound = findStatusMatch(
+    text,
+    sourceLabels(source, 'realm'),
+    statusPattern,
+  );
+
+  const login = parseServiceStatus(loginFound?.match);
+  const realm = parseServiceStatus(realmFound?.match);
+
+  let loginCheckedAt = parseCheckedAt(
+    findTimestampMatch(text, loginFound?.label, statusPattern),
+  );
+  let realmCheckedAt = parseCheckedAt(
+    findTimestampMatch(text, realmFound?.label, statusPattern),
+  );
+
+  if (source.freshness === 'fetch') {
+    const fetchedAt = new Date(nowMs).toISOString();
+    if (login !== null && !loginCheckedAt) loginCheckedAt = fetchedAt;
+    if (realm !== null && !realmCheckedAt) realmCheckedAt = fetchedAt;
+  }
+
+  const launchMs = Date.parse(profile.launchAt || '');
+  const prelaunch =
+    Number.isFinite(launchMs) &&
+    nowMs < launchMs;
+
+  const loginFresh =
+    login !== null &&
+    loginCheckedAt !== null &&
+    ageMs(loginCheckedAt, nowMs) <= profile.thresholds.foreverDbMaxAgeMs;
+
+  const realmFresh =
+    realm !== null &&
+    realmCheckedAt !== null &&
+    ageMs(realmCheckedAt, nowMs) <= profile.thresholds.foreverDbMaxAgeMs;
+
+  const problems = [];
+  if (login === null) problems.push('login status missing');
+  if (!loginCheckedAt && login !== null) problems.push('login timestamp missing');
+
+  // Before live launch ForeverDB intentionally publishes login reachability
+  // without a realm-game result. That is valid prelaunch data, not a parser error.
+  if (!prelaunch) {
+    if (realm === null) problems.push('realm status missing');
+    if (!realmCheckedAt && realm !== null) problems.push('realm timestamp missing');
+  }
+
+  if (loginCheckedAt && !loginFresh) problems.push('login result stale');
+  if (realmCheckedAt && !realmFresh) problems.push('realm result stale');
+
+  const maintenanceLabel = escapeRegex(source.maintenanceLabel || 'Maintenance');
+  const maintenanceMatch = text.match(
+    new RegExp(
+      `${maintenanceLabel}[^:]{0,40}:?\\s*(.{0,400}?)(?:\\n|$)`,
+      'i',
+    ),
+  );
+
+  return {
+    phase: prelaunch ? 'prelaunch' : 'live',
+    login,
+    realm,
+    login_checked_at: loginCheckedAt,
+    realm_checked_at: realmCheckedAt,
+    login_fresh: loginFresh,
+    realm_fresh: realmFresh,
+    maintenance: maintenanceMatch?.[1]?.trim() || null,
+    error: problems.length ? problems.join('; ') : null,
+  };
+}
+
 async function foreverDbProbe(profile, options) {
   const source = profile.foreverDb;
   const nowMs = options.nowMs;
@@ -92,69 +204,16 @@ async function foreverDbProbe(profile, options) {
       `${source.url}${separator}_=${nowMs}`,
       { ...options, headers: { accept: 'text/html' } },
     );
-    const text = htmlToText(html);
-    const statusPattern = '(Not answering|Answering|Offline|Online|Down|Up)';
-    const loginLabel = escapeRegex(source.loginLabel);
-    const realmLabel = escapeRegex(source.realmLabel);
-
-    const loginMatch = text.match(
-      new RegExp(
-        `${loginLabel}\\s+${statusPattern}[\\s\\S]{0,220}?checked\\s+([0-9T:.+-]+Z?)`,
-        'i',
-      ),
-    );
-    const realmMatch = text.match(
-      new RegExp(
-        `${realmLabel}\\s+${statusPattern}[\\s\\S]{0,220}?checked\\s+([0-9T:.+-]+Z?)`,
-        'i',
-      ),
-    );
-
-    const maintenanceLabel = escapeRegex(source.maintenanceLabel);
-    const maintenanceMatch = text.match(
-      new RegExp(
-        `${maintenanceLabel}\\s*(.{0,400}?)(?:${loginLabel}|$)`,
-        'i',
-      ),
-    );
-
-    const loginCheckedAt = parseCheckedAt(loginMatch);
-    const realmCheckedAt = parseCheckedAt(realmMatch);
-    const login = parseServiceStatus(loginMatch);
-    const realm = parseServiceStatus(realmMatch);
-
-    const loginFresh =
-      login !== null &&
-      loginCheckedAt !== null &&
-      ageMs(loginCheckedAt, nowMs) <= profile.thresholds.foreverDbMaxAgeMs;
-    const realmFresh =
-      realm !== null &&
-      realmCheckedAt !== null &&
-      ageMs(realmCheckedAt, nowMs) <= profile.thresholds.foreverDbMaxAgeMs;
-
-    const problems = [];
-    if (login === null) problems.push('login status missing');
-    if (realm === null) problems.push('realm status missing');
-    if (!loginCheckedAt) problems.push('login timestamp missing');
-    if (!realmCheckedAt) problems.push('realm timestamp missing');
-    if (loginCheckedAt && !loginFresh) problems.push('login result stale');
-    if (realmCheckedAt && !realmFresh) problems.push('realm result stale');
-
-    return {
-      login,
-      realm,
-      login_checked_at: loginCheckedAt,
-      realm_checked_at: realmCheckedAt,
-      login_fresh: loginFresh,
-      realm_fresh: realmFresh,
-      maintenance: maintenanceMatch?.[1]?.trim() || null,
-      error: problems.length ? problems.join('; ') : null,
-    };
+    return parseForeverDbStatusText(profile, htmlToText(html), nowMs);
   } catch (error) {
     return {
-      login: null, realm: null,
-      login_checked_at: null, realm_checked_at: null,
-      login_fresh: false, realm_fresh: false,
+      phase: null,
+      login: null,
+      realm: null,
+      login_checked_at: null,
+      realm_checked_at: null,
+      login_fresh: false,
+      realm_fresh: false,
       maintenance: null,
       error: String(error?.message || error),
     };
@@ -303,5 +362,5 @@ export async function collectEvidence(
     officialBlizzardSignal(profile, options),
   ]);
 
-  return { loginTcp, realmTcp, foreverDb, official };
+  return { now_ms: nowMs, loginTcp, realmTcp, foreverDb, official };
 }
