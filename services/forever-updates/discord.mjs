@@ -6,6 +6,16 @@ import {
 
 const FORUM_BASE = 'https://us.forums.blizzard.com/en/wow';
 
+function roleMention(roleId) {
+  const id = /^\d{15,22}$/.test(String(roleId || '').trim())
+    ? String(roleId).trim()
+    : null;
+  return {
+    content: id ? `<@&${id}>` : undefined,
+    allowed_mentions: id ? { parse: [], roles: [id] } : { parse: [] },
+  };
+}
+
 function forumUrl(post) {
   if (post?.url) {
     return post.url.startsWith('http')
@@ -20,15 +30,22 @@ function forumUrl(post) {
   );
 }
 
-export async function sendUpdate(webhookUrl, post, fetchImpl = fetch) {
+export async function sendUpdate(
+  webhookUrl,
+  post,
+  fetchImpl = fetch,
+  mentionRoleId = null,
+) {
   const source = classifySource(post);
   const officialUrl = officialArticleUrl(post);
   const pageUrl = officialUrl || forumUrl(post);
   const description = plain(post?.cooked || post?.excerpt || '').slice(0, 3500);
 
+  const mention = roleMention(mentionRoleId);
   const payload = {
     username: 'Forever Updates',
-    allowed_mentions: { parse: [] },
+    content: mention.content,
+    allowed_mentions: mention.allowed_mentions,
     embeds: [{
       title: plain(
         post?.topic_title || post?.topic?.title || 'New Blizzard update',
@@ -72,10 +89,13 @@ export async function sendGapWarning(
   webhookUrl,
   { lastSeenId, oldestAvailableId, newestAvailableId },
   fetchImpl = fetch,
+  mentionRoleId = null,
 ) {
+  const mention = roleMention(mentionRoleId);
   const payload = {
     username: 'Forever Updates',
-    allowed_mentions: { parse: [] },
+    content: mention.content,
+    allowed_mentions: mention.allowed_mentions,
     embeds: [{
       title: '⚠️ Forever update collector detected a tracker gap',
       description:
