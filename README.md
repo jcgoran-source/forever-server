@@ -1,90 +1,123 @@
 # Forever Server
 
-A collection of independent convenience services for **World of Warcraft: Forever**, now running the live/prelaunch Forever profile, with the retired Beta profile retained for history and fallback.
+Live utility infrastructure for **World of Warcraft: Forever**.
+
+The repository currently contains two peer services:
+
+- `realm-status` — live service monitoring and Discord status alerts.
+- `forever-updates` — Blizzard-authored Forever news, blueposts, hotfixes, operational notices, and official forum replies.
 
 ## Architecture
 
 ```text
 forever-server/
 ├── services/
-│   ├── beta-blue-checker/
-│   │   └── check.mjs
+│   ├── forever-updates/
+│   │   ├── collector.mjs
+│   │   ├── core.mjs
+│   │   ├── core.test.mjs
+│   │   ├── discord.mjs
+│   │   ├── worker.mjs
+│   │   └── wrangler.jsonc
 │   └── realm-status/
 │       ├── core.mjs
 │       ├── core.test.mjs
 │       ├── discord.mjs
 │       ├── profiles.mjs
 │       ├── sensors.mjs
+│       ├── sensors.test.mjs
 │       ├── sentry.mjs
 │       ├── worker.mjs
 │       ├── wrangler.jsonc
 │       └── runtimes/
 │           └── github.mjs
 └── .github/workflows/
-    ├── beta-blue-checker.yml
-    ├── realm-status-github-fallback.yml
-    └── deploy-realm-status-cloudflare.yml
+    ├── deploy-forever-updates-cloudflare.yml
+    ├── deploy-realm-status-cloudflare.yml
+    ├── forever-updates-cloudflare-build.yml
+    ├── realm-status-cloudflare-build.yml
+    └── realm-status-github-fallback.yml
 ```
 
-## beta-blue-checker → Discord `#beta-blue-checker`
+## forever-updates → Discord `#forever-updates`
 
-Polls Blizzard's official Blue Tracker and forwards Blizzard posts belonging to the Forever Beta forum.
+Cloudflare polls Blizzard's global WoW Blue Tracker once per minute. The source contains Blizzard-authored posts only, so ordinary player discussion never enters the collector.
 
-Required Actions secret: `DISCORD_WEBHOOK_URL`.
+A post is Forever-relevant when it is:
 
-## realm-status → Discord `#beta-realm-status`
+- in **World of Warcraft: Forever General Discussion** (category `347`);
+- in **WoW: Forever Community Connections** (category `348`);
+- a late post in retired **WoW: Forever Beta Discussion** (category `349`); or
+- elsewhere in the Blizzard tracker and its title or post body explicitly concerns **World of Warcraft: Forever / WoW Forever**.
 
-The realm sentry is now split into three independent layers:
+This intentionally covers official Blizzard News mirrors, operational posts, patch or hotfix posts with a Forever section, and Blizzard replies inside Forever community discussions.
 
-1. **Environment profile** — endpoints, ForeverDB labels, Blizzard forum/category and evidence-age thresholds.
-2. **Sentry engine** — evidence collection, confidence/conflict resolution, UNKNOWN handling, transition suppression and heartbeat policy.
-3. **Runtime adapter** — scheduling, TCP implementation and state persistence.
+The collector attempts to hydrate unseen tracker entries from the forum's full-post endpoint before relevance classification. If hydration fails, it falls back to the tracker excerpt instead of failing the poll.
+
+Other behavior:
+
+- one-minute Cloudflare Cron
+- SQLite-backed Durable Object state
+- silent first-run bootstrap
+- exact Blizzard post-ID cursor
+- duplicate suppression for mirrored announcements
+- tracker-window gap detection with a Discord warning
+- official WoW news articles use the Blizzard article as the primary link when available
+
+Cloudflare secret: `DISCORD_FOREVER_UPDATES_WEBHOOK_URL`.
+
+## realm-status → Discord `#forever-realm-status`
+
+The realm sentry separates environment configuration, evidence resolution, and runtime/state adapters.
 
 Current authoritative profile: `FOREVER_ENV=live`.
 
-The live profile is already active. Before launch it reports PRE-LAUNCH and monitors the Americas login infrastructure; after the November 4 launch time it begins requiring realm-game evidence as that becomes available.
+Before launch the live profile reports **PRE-LAUNCH** and monitors the Americas live login infrastructure. After launch it begins requiring realm-game evidence as that becomes available.
 
 ### Evidence model
 
 The sentry considers:
-- fresh ForeverDB aggregate login/realm probes
-- direct TCP reachability probes
-- recent official Blizzard status/maintenance language
 
-States are **online**, **offline**, **degraded**, and **unknown**. Failed hosted-runtime TCP probes are inconclusive rather than proof of an outage. Conflicting or stale evidence becomes `unknown`. Two consecutive unknown observations are required before Discord notification. A 24-hour health heartbeat distinguishes a stable monitor from a dead one.
+- fresh ForeverDB status
+- direct TCP reachability from Cloudflare
+- recent official Blizzard status or maintenance language from live Forever General Discussion and late Beta operational posts
 
-### Cloudflare Worker (target runtime)
+States are **PRE-LAUNCH**, **ONLINE**, **OFFLINE**, **DEGRADED**, and **UNKNOWN**.
 
-`services/realm-status/worker.mjs` is configured for:
-- one-minute Cron Trigger: `* * * * *`
-- Cloudflare outbound TCP sockets
-- SQLite-backed Durable Object state
-- environment selection through `FOREVER_ENV`
-- persisted Worker logs/observability
+Failed hosted-runtime TCP probes are inconclusive rather than proof of an outage. Conflicting or stale evidence becomes `UNKNOWN`. Two consecutive unknown observations are required before Discord notification. A 24-hour health heartbeat distinguishes a stable monitor from a dead one.
 
-The Worker is cron-only and exposes no public route. It silently bootstraps its own state on first execution, so it can be validated alongside the GitHub fallback without announcing a fake initial transition.
+### Scheduling
 
-### GitHub Actions (manual fallback)
+The authoritative Cloudflare Worker checks every **30 seconds** through a self-rescheduling Durable Object alarm.
 
-Cloudflare is now the authoritative scheduled runtime. The GitHub-backed sentry remains available only as a manual fallback; its issue-backed state is a separate runtime adapter sharing the same evidence and decision logic.
+A one-minute Cron Trigger remains as a watchdog. It verifies that the alarm loop has a near-future alarm and repairs the loop if necessary.
 
-### Cloudflare deployment
+Persistent state lives in a SQLite-backed Durable Object and Worker observability is enabled.
 
-The manual workflow **Deploy Realm Sentry to Cloudflare** runs resolver tests, deploys the Worker, then syncs the existing Discord webhook into Cloudflare as a Worker secret.
+### GitHub fallback
 
-Required GitHub Actions secrets:
+`realm-status-github-fallback.yml` is manual-only. It shares the evidence engine but uses GitHub issue #1 for state and is retained as an emergency fallback rather than a second scheduler.
+
+## Cloudflare deployment
+
+Both services have manual deployment workflows. Each deployment runs its tests before uploading the Worker and syncing its Discord webhook secret.
+
+Repository secrets:
+
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN`
-- `DISCORD_REALM_STATUS_WEBHOOK_URL` (already configured)
+- `DISCORD_REALM_STATUS_WEBHOOK_URL`
+- `DISCORD_WEBHOOK_URL` for the current Forever updates webhook
 
 ## Local commands
 
 ```bash
-npm run check:blue
-npm run check:realm
+npm run test
 npm run test:realm
+npm run test:updates
+npm run check:realm
 ```
 
 ## Design rule
 
-Environment-specific facts belong in profiles; runtime-specific behavior belongs in adapters; evidence resolution belongs in the shared sentry engine.
+Environment-specific facts belong in profiles; runtime-specific behavior belongs in adapters; evidence and relevance logic belong in shared testable modules. New Forever services should remain siblings under `services/`.
