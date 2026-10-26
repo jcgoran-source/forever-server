@@ -2,6 +2,10 @@ name: Deploy Forever Updates to Cloudflare
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'services/forever-updates/.deploy-cloudflare'
 
 permissions:
   contents: read
