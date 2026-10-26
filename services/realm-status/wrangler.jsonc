@@ -8,7 +8,7 @@
     "enabled": true
   },
   "vars": {
-    "FOREVER_ENV": "beta"
+    "FOREVER_ENV": "live"
   },
   "triggers": {
     "crons": ["* * * * *"]
