@@ -62,6 +62,7 @@ export async function collectForeverUpdates({
   webhookUrl,
   fetchImpl = fetch,
   now = new Date(),
+  onRelevantPost = null,
 }) {
   if (!webhookUrl) {
     throw new Error('DISCORD_FOREVER_UPDATES_WEBHOOK_URL is not configured');
@@ -160,6 +161,10 @@ export async function collectForeverUpdates({
         `Skipped duplicate Forever update ${post.id}: ${post.topic_title || post.topic?.title || 'untitled'}`,
       );
       continue;
+    }
+
+    if (onRelevantPost) {
+      await onRelevantPost(post);
     }
 
     await sendUpdate(webhookUrl, post, fetchImpl);
