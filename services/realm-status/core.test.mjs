@@ -5,6 +5,7 @@ import { evaluateObservation, resolveStatus } from './core.mjs';
 import { getProfile } from './profiles.mjs';
 
 const profile = getProfile('beta');
+const liveProfile = getProfile('live');
 
 function diagnostics({
   db = 'online', login = false, realm = false,
@@ -108,4 +109,48 @@ test('unknown requires two consecutive observations before announcement', () => 
   assert.equal(second.action, 'transition');
   assert.equal(second.next.status, 'unknown');
   assert.equal(second.next.confirmed_status, 'online');
+});
+
+
+test('live profile resolves to prelaunch before November 4', () => {
+  const result = resolveStatus(liveProfile, {
+    now_ms: Date.parse('2026-10-25T19:30:00-07:00'),
+    foreverDb: {
+      phase: 'prelaunch',
+      login: true,
+      realm: null,
+      login_fresh: true,
+      realm_fresh: false,
+    },
+    loginTcp: { up: true },
+    realmTcp: { up: false },
+    official: { signal: null, age_ms: null },
+  });
+
+  assert.equal(result.status, 'prelaunch');
+  assert.equal(result.confidence, 'high');
+});
+
+test('profile change bootstraps silently', () => {
+  const previousBeta = {
+    version: 3,
+    profile: 'beta',
+    status: 'online',
+    confirmed_status: 'online',
+    updated_at: '2026-10-21T15:00:00.000Z',
+    last_health_at: '2026-10-21T15:00:00.000Z',
+    unknown_streak: 0,
+  };
+
+  const decision = evaluateObservation(
+    liveProfile,
+    previousBeta,
+    { status: 'prelaunch', confidence: 'high' },
+    '2026-10-25T19:30:00.000Z',
+  );
+
+  assert.equal(decision.bootstrap, true);
+  assert.equal(decision.action, null);
+  assert.equal(decision.next.profile, 'live');
+  assert.equal(decision.next.status, 'prelaunch');
 });
