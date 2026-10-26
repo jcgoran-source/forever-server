@@ -1,6 +1,6 @@
 # Forever Server
 
-A collection of independent convenience services for **World of Warcraft: Forever**, presently configured for the Forever Beta and intended to carry forward into live launch.
+A collection of independent convenience services for **World of Warcraft: Forever**, now running the live/prelaunch Forever profile, with the retired Beta profile retained for history and fallback.
 
 ## Architecture
 
@@ -40,9 +40,9 @@ The realm sentry is now split into three independent layers:
 2. **Sentry engine** — evidence collection, confidence/conflict resolution, UNKNOWN handling, transition suppression and heartbeat policy.
 3. **Runtime adapter** — scheduling, TCP implementation and state persistence.
 
-Current profile: `FOREVER_ENV=beta`.
+Current authoritative profile: `FOREVER_ENV=live`.
 
-Live launch should therefore require a new/updated profile and any changed sensors, rather than a new tool.
+The live profile is already active. Before launch it reports PRE-LAUNCH and monitors the Americas login infrastructure; after the November 4 launch time it begins requiring realm-game evidence as that becomes available.
 
 ### Evidence model
 
