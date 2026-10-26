@@ -15,11 +15,19 @@
       {
         "name": "UPDATE_STATE",
         "class_name": "UpdateState"
+      },
+      {
+        "name": "BRIEFING_STATE",
+        "class_name": "BriefingState"
       }
     ]
   },
   "exports": {
     "UpdateState": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "BriefingState": {
       "type": "durable-object",
       "storage": "sqlite"
     }
