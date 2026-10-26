@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'services/forever-updates/**'
+      - 'services/forever-briefing/**'
+      - 'services/forever-briefing/**'
       - '.github/workflows/forever-updates-cloudflare-build.yml'
   pull_request:
     paths:
@@ -24,7 +26,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test Forever update collector
-        run: node --test services/forever-updates/*.test.mjs
+        run: node --test services/forever-updates/*.test.mjs services/forever-briefing/*.test.mjs
       - name: Bundle Cloudflare Worker
         run: |
           npx --yes wrangler@latest deploy --dry-run \
