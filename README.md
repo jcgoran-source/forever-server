@@ -60,10 +60,9 @@ States are **online**, **offline**, **degraded**, and **unknown**. Failed hosted
 - Cloudflare outbound TCP sockets
 - SQLite-backed Durable Object state
 - environment selection through `FOREVER_ENV`
-- a read-only public `/health` endpoint containing no secrets
 - persisted Worker logs/observability
 
-The Worker silently bootstraps its own state on first execution, so it can be validated alongside the GitHub fallback without announcing a fake initial transition.
+The Worker is cron-only and exposes no public route. It silently bootstraps its own state on first execution, so it can be validated alongside the GitHub fallback without announcing a fake initial transition.
 
 ### GitHub Actions (temporary fallback)
 
