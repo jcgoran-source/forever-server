@@ -39,49 +39,9 @@ const CATEGORY_RULES = [
   ]],
 ];
 
-const FOCUS_RULES = [
-  {
-    relevance: 'high',
-    tags: ['Mage/Frost'],
-    pattern: /\b(mage|frostbolt|frost nova|cone of cold|blizzard|ice barrier|frost)\b/i,
-    reason: 'Touches Mage/Frost directly.',
-  },
-  {
-    relevance: 'high',
-    tags: ['Launch operations'],
-    pattern: /\b(launch|release|login|queue|server|realm|maintenance|downtime|restart|reservation)\b/i,
-    reason: 'Could change launch-day access, timing, or server conditions.',
-  },
-  {
-    relevance: 'high',
-    tags: ['Launch route'],
-    pattern: /\b(durotar|barrens|ragefire|wailing caverns|quest|flight path)\b/i,
-    reason: 'Could affect the planned early Horde leveling route.',
-  },
-  {
-    relevance: 'medium',
-    tags: ['Professions'],
-    pattern: /\b(tailor(?:ing)?|skinning|enchant(?:ing)?|profession|recipe|crafting)\b/i,
-    reason: 'Could affect the planned profession path or early economy.',
-  },
-  {
-    relevance: 'medium',
-    tags: ['Early dungeons'],
-    pattern: /\b(shadowfang|blackfathom|deadmines|dungeon|instance)\b/i,
-    reason: 'Could affect opportunistic early dungeon routing.',
-  },
-  {
-    relevance: 'medium',
-    tags: ['PvP'],
-    pattern: /\b(pvp|honor|battleground|world pvp|layer|layering)\b/i,
-    reason: 'Could affect the intended PvP-server experience.',
-  },
-];
-
 const PRIORITY_WEIGHT = { high: 3, medium: 2, normal: 1 };
 
-export const QUIET_PERIOD_MS = 10 * 60 * 1000;
-export const MAX_BRIEF_DELAY_MS = 6 * 60 * 60 * 1000;
+export const BRIEFING_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
 function forumUrl(post) {
   if (post?.url) {
@@ -140,35 +100,12 @@ function categoriesFor(text) {
     : ['General'];
 }
 
-function focusFor(text) {
-  const matches = FOCUS_RULES.filter((rule) => rule.pattern.test(text));
-  if (!matches.length) {
-    return {
-      relevance: 'none',
-      tags: [],
-      reason: null,
-    };
-  }
-
-  const order = { high: 3, medium: 2, low: 1, none: 0 };
-  const relevance = matches
-    .map((match) => match.relevance)
-    .sort((a, b) => order[b] - order[a])[0];
-
-  return {
-    relevance,
-    tags: [...new Set(matches.flatMap((match) => match.tags))],
-    reason: [...new Set(matches.map((match) => match.reason))].join(' '),
-  };
-}
-
-function priorityFor(text, categories, focus) {
+function priorityFor(text, categories) {
   if (
     /\b(outage|offline|emergency|rollback|breaking|critical|maintenance|downtime|login issue|queue)\b/i.test(text)
   ) return 'high';
 
   if (
-    focus.relevance === 'high' ||
     categories.includes('Known Issues & Fixes') ||
     categories.includes('Classes') ||
     categories.includes('Dungeons & Raids')
@@ -184,7 +121,6 @@ export function synthesizePost(post) {
   const summary = extractSummary(post);
   const text = `${title}\n${plain(post?.cooked || post?.excerpt || '')}`;
   const categories = categoriesFor(text);
-  const focus = focusFor(text);
 
   return {
     id: `post:${post.id}`,
@@ -198,8 +134,7 @@ export function synthesizePost(post) {
     forum_url: forumUrl(post),
     categories,
     primary_category: categories[0],
-    priority: priorityFor(text, categories, focus),
-    focus,
+    priority: priorityFor(text, categories),
   };
 }
 
@@ -268,26 +203,16 @@ export function pendingChanges(stateRaw) {
 export function briefingDue(
   stateRaw,
   nowMs = Date.now(),
-  {
-    quietPeriodMs = QUIET_PERIOD_MS,
-    maxDelayMs = MAX_BRIEF_DELAY_MS,
-  } = {},
+  { intervalMs = BRIEFING_INTERVAL_MS } = {},
 ) {
   const state = normalizeBriefingState(stateRaw);
   if (!state.pending_change_ids.length) return false;
 
-  const lastChangeMs = Date.parse(state.last_change_at || '');
   const firstPendingMs = Date.parse(state.first_pending_at || '');
-
-  const quietEnough =
-    Number.isFinite(lastChangeMs) &&
-    nowMs - lastChangeMs >= quietPeriodMs;
-
-  const waitedLongEnough =
+  return (
     Number.isFinite(firstPendingMs) &&
-    nowMs - firstPendingMs >= maxDelayMs;
-
-  return quietEnough || waitedLongEnough;
+    nowMs - firstPendingMs >= intervalMs
+  );
 }
 
 export function buildBriefingFromChanges(
@@ -313,12 +238,6 @@ export function buildBriefingFromChanges(
     grouped.get(key).push(change);
   }
 
-  const focus = changes
-    .filter((change) => change.focus?.relevance === 'high' || change.focus?.relevance === 'medium')
-    .sort((a, b) => {
-      const order = { high: 2, medium: 1, none: 0 };
-      return order[b.focus.relevance] - order[a.focus.relevance];
-    });
 
   return {
     sequence,
@@ -331,7 +250,6 @@ export function buildBriefingFromChanges(
       category,
       items,
     })),
-    focus,
   };
 }
 
