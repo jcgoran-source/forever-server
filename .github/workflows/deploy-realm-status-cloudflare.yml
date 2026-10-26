@@ -2,10 +2,6 @@ name: Deploy Realm Sentry to Cloudflare
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'services/realm-status/.deploy-cloudflare'
 
 permissions:
   contents: read
