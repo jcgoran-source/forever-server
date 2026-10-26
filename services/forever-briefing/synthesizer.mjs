@@ -219,11 +219,19 @@ export function normalizeBriefingState(raw = {}) {
     first_pending_at: raw.first_pending_at || null,
     last_brief_at: raw.last_brief_at || null,
     brief_sequence: Number(raw.brief_sequence || 0),
+    completed_backfills: Array.isArray(raw.completed_backfills)
+      ? raw.completed_backfills.slice(-50)
+      : [],
     updated_at: raw.updated_at || null,
   };
 }
 
-export function ingestPostIntoState(rawState, post, now = new Date()) {
+export function ingestPostIntoState(
+  rawState,
+  post,
+  now = new Date(),
+  { pending = true } = {},
+) {
   const state = normalizeBriefingState(rawState);
   const postId = Number(post.id);
 
@@ -238,9 +246,13 @@ export function ingestPostIntoState(rawState, post, now = new Date()) {
     ...state,
     ingested_post_ids: [...state.ingested_post_ids, postId].slice(-500),
     changes: [...state.changes, change].slice(-500),
-    pending_change_ids: [...state.pending_change_ids, change.id].slice(-250),
-    last_change_at: nowIso,
-    first_pending_at: state.first_pending_at || nowIso,
+    pending_change_ids: pending
+      ? [...state.pending_change_ids, change.id].slice(-250)
+      : state.pending_change_ids,
+    last_change_at: pending ? nowIso : state.last_change_at,
+    first_pending_at: pending
+      ? (state.first_pending_at || nowIso)
+      : state.first_pending_at,
     updated_at: nowIso,
   };
 
@@ -278,9 +290,17 @@ export function briefingDue(
   return quietEnough || waitedLongEnough;
 }
 
-export function buildBriefing(stateRaw, now = new Date()) {
-  const state = normalizeBriefingState(stateRaw);
-  const changes = pendingChanges(state)
+export function buildBriefingFromChanges(
+  changesRaw,
+  sequence,
+  now = new Date(),
+  {
+    kind = 'current',
+    label = null,
+    source_window = null,
+  } = {},
+) {
+  const changes = [...changesRaw]
     .sort((a, b) =>
       (PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority]) ||
       Date.parse(a.created_at) - Date.parse(b.created_at),
@@ -301,7 +321,10 @@ export function buildBriefing(stateRaw, now = new Date()) {
     });
 
   return {
-    sequence: state.brief_sequence + 1,
+    sequence,
+    kind,
+    label,
+    source_window,
     generated_at: now.toISOString(),
     change_count: changes.length,
     groups: [...grouped.entries()].map(([category, items]) => ({
@@ -312,12 +335,39 @@ export function buildBriefing(stateRaw, now = new Date()) {
   };
 }
 
+export function buildBriefing(stateRaw, now = new Date()) {
+  const state = normalizeBriefingState(stateRaw);
+  return buildBriefingFromChanges(
+    pendingChanges(state),
+    state.brief_sequence + 1,
+    now,
+  );
+}
+
 export function markBriefingSent(rawState, now = new Date()) {
   const state = normalizeBriefingState(rawState);
   return {
     ...state,
     pending_change_ids: [],
     first_pending_at: null,
+    last_brief_at: now.toISOString(),
+    brief_sequence: state.brief_sequence + 1,
+    updated_at: now.toISOString(),
+  };
+}
+
+export function markHistoricalBriefingSent(
+  rawState,
+  backfillKey,
+  now = new Date(),
+) {
+  const state = normalizeBriefingState(rawState);
+  return {
+    ...state,
+    completed_backfills: [
+      ...state.completed_backfills.filter((key) => key !== backfillKey),
+      backfillKey,
+    ].slice(-50),
     last_brief_at: now.toISOString(),
     brief_sequence: state.brief_sequence + 1,
     updated_at: now.toISOString(),
