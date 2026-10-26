@@ -6,7 +6,8 @@
     "check:realm": "node services/realm-status/runtimes/github.mjs",
     "test:realm": "node --test services/realm-status/*.test.mjs",
     "test:updates": "node --test services/forever-updates/*.test.mjs",
-    "test": "node --test services/realm-status/*.test.mjs services/forever-updates/*.test.mjs"
+    "test:briefing": "node --test services/forever-briefing/*.test.mjs",
+    "test": "node --test services/realm-status/*.test.mjs services/forever-updates/*.test.mjs services/forever-briefing/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
