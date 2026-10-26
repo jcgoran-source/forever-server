@@ -5,9 +5,13 @@ function sourceSummary(diagnostics) {
   const dbFresh =
     diagnostics.foreverDb?.login_fresh && diagnostics.foreverDb?.realm_fresh;
 
-  const dbText = dbFresh
-    ? `${statusLabel(db)} · login checked ${diagnostics.foreverDb.login_checked_at} · realm checked ${diagnostics.foreverDb.realm_checked_at}`
-    : `UNKNOWN · ${diagnostics.foreverDb?.error || 'stale/unparseable'}`;
+  const dbText =
+    diagnostics.foreverDb?.phase === 'prelaunch' &&
+    diagnostics.foreverDb?.login_fresh
+      ? `LOGIN ANSWERING · observed ${diagnostics.foreverDb.login_checked_at} · realm check not yet published`
+      : dbFresh
+        ? `${statusLabel(db)} · login checked ${diagnostics.foreverDb.login_checked_at} · realm checked ${diagnostics.foreverDb.realm_checked_at}`
+        : `UNKNOWN · ${diagnostics.foreverDb?.error || 'stale/unparseable'}`;
 
   const directText = [
     `login ${diagnostics.loginTcp?.up ? `answering (${diagnostics.loginTcp.latency} ms)` : 'inconclusive'}`,
@@ -35,6 +39,7 @@ export async function sendDiscord({
     online: [`🟢 ${profile.displayName} is ONLINE`, 0x57f287],
     offline: [`🔴 ${profile.displayName} is OFFLINE`, 0xed4245],
     degraded: [`🟡 ${profile.displayName} is DEGRADED`, 0xfee75c],
+    prelaunch: [`🕓 ${profile.displayName} is PRE-LAUNCH`, 0x5865f2],
     unknown: [`⚪ ${profile.displayName} status is UNKNOWN`, 0x99aab5],
   };
 
