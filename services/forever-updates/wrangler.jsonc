@@ -7,6 +7,11 @@
   "observability": {
     "enabled": true
   },
+  "vars": {
+    "BRIEFING_BACKFILL_KEY": "prelaunch-2026-10-20-v1",
+    "BRIEFING_BACKFILL_SINCE": "2026-10-20T00:00:00.000Z",
+    "BRIEFING_BACKFILL_LIMIT": "12"
+  },
   "triggers": {
     "crons": ["* * * * *"]
   },
