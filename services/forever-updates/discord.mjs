@@ -9,10 +9,12 @@ const UPDATE_EXCERPT_MAX = 850;
 
 function updateExcerpt(post) {
   const html = String(post?.cooked || post?.excerpt || '')
-    .replace(/<\/(?:p|li|blockquote|h[1-6])>/gi, (match) => `${match}\n\n`)
-    .replace(/<br\s*\/?>/gi, (match) => `${match}\n`)
+    .replace(/<\/(?:p|li|blockquote|h[1-6])>/gi, ' FOREVERPARABREAK ')
+    .replace(/<br\s*\/?>/gi, ' FOREVERLINEBREAK ');
 
   let text = plain(html)
+    .replace(/\s*FOREVERPARABREAK\s*/g, '\n\n')
+    .replace(/\s*FOREVERLINEBREAK\s*/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
