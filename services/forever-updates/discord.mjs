@@ -9,8 +9,8 @@ const UPDATE_EXCERPT_MAX = 850;
 
 function updateExcerpt(post) {
   const html = String(post?.cooked || post?.excerpt || '')
-    .replace(/<\/(?:p|li|blockquote|h[1-6])>/gi, 'const FORUM_BASE = 'https://us.forums.blizzard.com/en/wow';\n\n')
-    .replace(/<br\s*\/?>/gi, 'const FORUM_BASE = 'https://us.forums.blizzard.com/en/wow';\n');
+    .replace(/<\/(?:p|li|blockquote|h[1-6])>/gi, (match) => `${match}\n\n`)
+    .replace(/<br\s*\/?>/gi, (match) => `${match}\n`)
 
   let text = plain(html)
     .replace(/\n{3,}/g, '\n\n')
