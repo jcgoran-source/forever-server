@@ -112,9 +112,9 @@ test('unknown requires two consecutive observations before announcement', () => 
 });
 
 
-test('live profile resolves to prelaunch before November 4', () => {
+test('live profile resolves to prelaunch before name reservation opens', () => {
   const result = resolveStatus(liveProfile, {
-    now_ms: Date.parse('2026-10-25T19:30:00-07:00'),
+    now_ms: Date.parse('2026-10-27T19:59:59Z'),
     foreverDb: {
       phase: 'prelaunch',
       login: true,
@@ -129,6 +129,50 @@ test('live profile resolves to prelaunch before November 4', () => {
 
   assert.equal(result.status, 'prelaunch');
   assert.equal(result.confidence, 'high');
+});
+
+
+test('live profile resolves to name reservation after the reservation window opens', () => {
+  const result = resolveStatus(liveProfile, {
+    now_ms: Date.parse('2026-10-27T20:00:00Z'),
+    foreverDb: {
+      phase: 'prelaunch',
+      login: true,
+      realm: null,
+      login_fresh: true,
+      realm_fresh: false,
+    },
+    loginTcp: { up: true },
+    realmTcp: { up: false },
+    official: { signal: null, age_ms: null },
+  });
+
+  assert.equal(result.status, 'reservation');
+  assert.equal(result.confidence, 'high');
+  assert.match(result.reason, /Early Name Reservation is open/);
+});
+
+test('prelaunch to reservation is an announced transition', () => {
+  const previous = {
+    version: 3,
+    profile: 'live',
+    status: 'prelaunch',
+    confirmed_status: 'prelaunch',
+    updated_at: '2026-10-27T19:00:00.000Z',
+    last_health_at: '2026-10-27T19:00:00.000Z',
+    unknown_streak: 0,
+  };
+
+  const decision = evaluateObservation(
+    liveProfile,
+    previous,
+    { status: 'reservation', confidence: 'high' },
+    '2026-10-27T20:00:01.000Z',
+  );
+
+  assert.equal(decision.action, 'transition');
+  assert.equal(decision.next.status, 'reservation');
+  assert.equal(decision.next.confirmed_status, 'reservation');
 });
 
 test('profile change bootstraps silently', () => {
