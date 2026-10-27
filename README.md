@@ -118,7 +118,7 @@ The realm sentry separates environment configuration, evidence resolution, and r
 
 Current authoritative profile: `FOREVER_ENV=live`.
 
-Before launch the live profile reports **PRE-LAUNCH** and monitors the Americas live login infrastructure. After launch it begins requiring realm-game evidence as that becomes available.
+Before Early Name Reservation the live profile reports **PRE-LAUNCH** while monitoring the Americas live login infrastructure. At the official reservation opening it transitions to **NAME RESERVATION OPEN** without conflating that phase with gameplay availability. After the November 4 launch it begins requiring realm-game evidence as that becomes available.
 
 ### Evidence model
 
@@ -128,7 +128,7 @@ The sentry considers:
 - direct TCP reachability from Cloudflare
 - recent official Blizzard status or maintenance language from live Forever General Discussion and late Beta operational posts
 
-States are **PRE-LAUNCH**, **ONLINE**, **OFFLINE**, **DEGRADED**, and **UNKNOWN**.
+States are **PRE-LAUNCH**, **NAME RESERVATION OPEN**, **ONLINE**, **OFFLINE**, **DEGRADED**, and **UNKNOWN**.
 
 Failed hosted-runtime TCP probes are inconclusive rather than proof of an outage. Conflicting or stale evidence becomes `UNKNOWN`. Two consecutive unknown observations are required before Discord notification. A 24-hour health heartbeat distinguishes a stable monitor from a dead one.
 
