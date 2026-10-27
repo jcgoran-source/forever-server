@@ -5,6 +5,38 @@ import {
 } from './core.mjs';
 
 const FORUM_BASE = 'https://us.forums.blizzard.com/en/wow';
+const UPDATE_EXCERPT_MAX = 850;
+
+function updateExcerpt(post) {
+  const html = String(post?.cooked || post?.excerpt || '')
+    .replace(/<\/(?:p|li|blockquote|h[1-6])>/gi, 'const FORUM_BASE = 'https://us.forums.blizzard.com/en/wow';\n\n')
+    .replace(/<br\s*\/?>/gi, 'const FORUM_BASE = 'https://us.forums.blizzard.com/en/wow';\n');
+
+  let text = plain(html)
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  const title = plain(
+    post?.topic_title || post?.topic?.title || post?.title || '',
+  );
+  if (title && text.toLowerCase().startsWith(title.toLowerCase())) {
+    text = text.slice(title.length).trim();
+  }
+
+  if (text.length <= UPDATE_EXCERPT_MAX) return text;
+
+  const clipped = text.slice(0, UPDATE_EXCERPT_MAX - 1);
+  const boundary = Math.max(
+    clipped.lastIndexOf('\n\n'),
+    clipped.lastIndexOf('. '),
+    clipped.lastIndexOf(' '),
+  );
+  const safe = boundary >= UPDATE_EXCERPT_MAX * 0.65
+    ? clipped.slice(0, boundary).trimEnd()
+    : clipped.trimEnd();
+
+  return `${safe}…`;
+}
 
 function roleMention(roleId) {
   const id = /^\d{15,22}$/.test(String(roleId || '').trim())
@@ -39,7 +71,7 @@ export async function sendUpdate(
   const source = classifySource(post);
   const officialUrl = officialArticleUrl(post);
   const pageUrl = officialUrl || forumUrl(post);
-  const description = plain(post?.cooked || post?.excerpt || '').slice(0, 3500);
+  const description = updateExcerpt(post);
 
   const mention = roleMention(mentionRoleId);
   const payload = {
