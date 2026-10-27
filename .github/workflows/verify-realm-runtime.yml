@@ -1,0 +1,31 @@
+name: Verify Realm Sentry Runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/realm-status/.verify-runtime'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Tail realm sentry runtime
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          timeout 55s npx --yes wrangler@latest tail forever-realm-status --format pretty 2>&1 | tee realm-tail.log || code=$?
+          if [ "${code:-0}" -ne 0 ] && [ "${code:-0}" -ne 124 ]; then
+            exit "$code"
+          fi
+          grep -E "reservation|NAME RESERVATION|profile|observed|Realm-status transition sent|No realm-status transition" realm-tail.log || true
