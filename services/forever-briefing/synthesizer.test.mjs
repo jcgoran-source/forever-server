@@ -3,7 +3,9 @@ import test from 'node:test';
 
 import {
   BRIEFING_INTERVAL_MS,
+  BRIEFING_TIME_ZONE,
   briefingDue,
+  briefingSlotKey,
   buildBriefing,
   ingestPostIntoState,
   markBriefingSent,
@@ -63,29 +65,61 @@ test('ingestion is idempotent by Blizzard post id', () => {
   assert.equal(second.state.pending_change_ids.length, 1);
 });
 
-test('briefing waits four hours from the first pending update', () => {
+test('briefing uses six-hour America/Los_Angeles clock slots', () => {
   const ingested = ingestPostIntoState(
     {},
     post(),
-    new Date('2026-10-26T12:00:00Z'),
+    new Date('2026-10-27T12:30:00Z'),
   );
 
-  assert.equal(BRIEFING_INTERVAL_MS, 4 * 60 * 60 * 1000);
+  assert.equal(BRIEFING_INTERVAL_MS, 6 * 60 * 60 * 1000);
+  assert.equal(BRIEFING_TIME_ZONE, 'America/Los_Angeles');
+
+  // 05:30 PDT pending update waits for the 06:00 PDT slot.
   assert.equal(
-    briefingDue(ingested.state, Date.parse('2026-10-26T15:59:59Z')),
+    briefingDue(ingested.state, Date.parse('2026-10-27T12:59:59Z')),
     false,
   );
   assert.equal(
-    briefingDue(ingested.state, Date.parse('2026-10-26T16:00:00Z')),
+    briefingDue(ingested.state, Date.parse('2026-10-27T13:00:00Z')),
     true,
   );
 });
 
-test('later updates join the batch without resetting its four-hour clock', () => {
+test('an update arriving after a slot rolls into the next six-hour briefing', () => {
+  const ingested = ingestPostIntoState(
+    {},
+    post(),
+    new Date('2026-10-27T13:01:00Z'),
+  );
+
+  // 06:01 PDT arrived just after the 06:00 slot, so noon PDT is next.
+  assert.equal(
+    briefingDue(ingested.state, Date.parse('2026-10-27T13:05:00Z')),
+    false,
+  );
+  assert.equal(
+    briefingDue(ingested.state, Date.parse('2026-10-27T19:00:00Z')),
+    true,
+  );
+});
+
+test('briefing slot calculation follows Pacific daylight-saving time', () => {
+  assert.equal(
+    briefingSlotKey(new Date('2026-10-27T13:00:00Z')),
+    '2026-10-27-06',
+  );
+  assert.equal(
+    briefingSlotKey(new Date('2026-11-02T14:00:00Z')),
+    '2026-11-02-06',
+  );
+});
+
+test('later updates join the current batch without resetting its slot', () => {
   let state = ingestPostIntoState(
     {},
     post(),
-    new Date('2026-10-26T12:00:00Z'),
+    new Date('2026-10-27T12:00:00Z'),
   ).state;
 
   state = ingestPostIntoState(
@@ -95,12 +129,12 @@ test('later updates join the batch without resetting its four-hour clock', () =>
       topic_title: 'Profession Recipe Updates',
       cooked: '<p>Profession recipes have updated material requirements.</p>',
     }),
-    new Date('2026-10-26T15:30:00Z'),
+    new Date('2026-10-27T12:45:00Z'),
   ).state;
 
-  assert.equal(state.first_pending_at, '2026-10-26T12:00:00.000Z');
+  assert.equal(state.first_pending_at, '2026-10-27T12:00:00.000Z');
   assert.equal(
-    briefingDue(state, Date.parse('2026-10-26T16:00:00Z')),
+    briefingDue(state, Date.parse('2026-10-27T13:00:00Z')),
     true,
   );
 });
@@ -124,7 +158,7 @@ test('briefing groups general changes by domain', () => {
 
   const briefing = buildBriefing(
     state,
-    new Date('2026-10-26T16:00:00Z'),
+    new Date('2026-10-27T19:00:00Z'),
   );
 
   assert.equal(briefing.change_count, 2);
@@ -134,7 +168,7 @@ test('briefing groups general changes by domain', () => {
 
   const cleared = markBriefingSent(
     state,
-    new Date('2026-10-26T16:00:00Z'),
+    new Date('2026-10-27T19:00:00Z'),
   );
   assert.deepEqual(cleared.pending_change_ids, []);
   assert.equal(cleared.brief_sequence, 1);
