@@ -41,7 +41,55 @@ const CATEGORY_RULES = [
 
 const PRIORITY_WEIGHT = { high: 3, medium: 2, normal: 1 };
 
-export const BRIEFING_INTERVAL_MS = 4 * 60 * 60 * 1000;
+export const BRIEFING_INTERVAL_MS = 6 * 60 * 60 * 1000;
+export const BRIEFING_SLOT_HOURS = [0, 6, 12, 18];
+export const BRIEFING_TIME_ZONE = 'America/Los_Angeles';
+export const BRIEFING_SLOT_GRACE_MINUTES = 10;
+
+function pacificParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: BRIEFING_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value]),
+  );
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+  };
+}
+
+export function briefingSlotKey(date = new Date()) {
+  const parts = pacificParts(date);
+  const slotHour = Math.floor(parts.hour / 6) * 6;
+  return [
+    String(parts.year).padStart(4, '0'),
+    String(parts.month).padStart(2, '0'),
+    String(parts.day).padStart(2, '0'),
+    String(slotHour).padStart(2, '0'),
+  ].join('-');
+}
+
+function insideBriefingSlotWindow(date = new Date()) {
+  const parts = pacificParts(date);
+  return (
+    BRIEFING_SLOT_HOURS.includes(parts.hour) &&
+    parts.minute < BRIEFING_SLOT_GRACE_MINUTES
+  );
+}
 
 function forumUrl(post) {
   if (post?.url) {
@@ -153,6 +201,7 @@ export function normalizeBriefingState(raw = {}) {
     last_change_at: raw.last_change_at || null,
     first_pending_at: raw.first_pending_at || null,
     last_brief_at: raw.last_brief_at || null,
+    last_brief_slot: raw.last_brief_slot || null,
     brief_sequence: Number(raw.brief_sequence || 0),
     completed_backfills: Array.isArray(raw.completed_backfills)
       ? raw.completed_backfills.slice(-50)
@@ -203,15 +252,27 @@ export function pendingChanges(stateRaw) {
 export function briefingDue(
   stateRaw,
   nowMs = Date.now(),
-  { intervalMs = BRIEFING_INTERVAL_MS } = {},
 ) {
   const state = normalizeBriefingState(stateRaw);
   if (!state.pending_change_ids.length) return false;
 
+  const now = new Date(nowMs);
+  if (!insideBriefingSlotWindow(now)) return false;
+
   const firstPendingMs = Date.parse(state.first_pending_at || '');
+  if (!Number.isFinite(firstPendingMs)) return false;
+
+  const currentSlot = briefingSlotKey(now);
+  const firstPendingSlot = briefingSlotKey(new Date(firstPendingMs));
+  const lastBriefSlot =
+    state.last_brief_slot ||
+    (state.last_brief_at
+      ? briefingSlotKey(new Date(state.last_brief_at))
+      : null);
+
   return (
-    Number.isFinite(firstPendingMs) &&
-    nowMs - firstPendingMs >= intervalMs
+    firstPendingSlot < currentSlot &&
+    lastBriefSlot !== currentSlot
   );
 }
 
@@ -269,6 +330,7 @@ export function markBriefingSent(rawState, now = new Date()) {
     pending_change_ids: [],
     first_pending_at: null,
     last_brief_at: now.toISOString(),
+    last_brief_slot: briefingSlotKey(now),
     brief_sequence: state.brief_sequence + 1,
     updated_at: now.toISOString(),
   };
