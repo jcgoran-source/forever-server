@@ -15,6 +15,7 @@ export function resolveStatus(profile, diagnostics) {
   const { foreverDb, loginTcp, realmTcp, official } = diagnostics;
 
   const launchMs = Date.parse(profile.launchAt || '');
+  const reservationMs = Date.parse(profile.reservationAt || '');
   if (
     Number.isFinite(launchMs) &&
     Number.isFinite(diagnostics.now_ms) &&
@@ -24,6 +25,25 @@ export function resolveStatus(profile, diagnostics) {
       foreverDb?.login_fresh || loginTcp?.up
         ? 'Live login infrastructure is answering.'
         : 'Live login infrastructure is not currently confirmed.';
+
+    const reservationOpen =
+      Number.isFinite(reservationMs) &&
+      diagnostics.now_ms >= reservationMs;
+
+    if (reservationOpen) {
+      return {
+        status: 'reservation',
+        confidence: 'high',
+        reason:
+          `WoW Forever Early Name Reservation is open; live gameplay remains locked until ${profile.launchAt}. ${loginEvidence}`,
+        evidence: {
+          foreverdb: foreverDb?.login_fresh ? 'login-positive' : 'inconclusive',
+          direct_login: loginTcp?.up ? 'positive' : 'inconclusive',
+          direct_realm: 'reservation-phase',
+          official: official?.signal || 'scheduled-reservation-window',
+        },
+      };
+    }
 
     return {
       status: 'prelaunch',
@@ -164,7 +184,7 @@ export function resolveStatus(profile, diagnostics) {
 export function normalizeState(raw, profileId) {
   const state = raw && typeof raw === 'object' ? raw : {};
   const known =
-    ['online', 'offline', 'degraded', 'prelaunch'].includes(state.status)
+    ['online', 'offline', 'degraded', 'prelaunch', 'reservation'].includes(state.status)
       ? state.status
       : state.confirmed_status;
 
@@ -248,5 +268,6 @@ export function statusLabel(value) {
   if (value === 'offline') return 'OFFLINE';
   if (value === 'degraded') return 'DEGRADED';
   if (value === 'prelaunch') return 'PRE-LAUNCH';
+  if (value === 'reservation') return 'NAME RESERVATION OPEN';
   return 'UNKNOWN';
 }
