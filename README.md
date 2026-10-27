@@ -69,6 +69,7 @@ Other behavior:
 - exact Blizzard post-ID cursor
 - duplicate suppression for mirrored announcements
 - tracker-window gap detection with a Discord warning
+- compact Discord excerpts capped at 850 characters, with paragraph breaks preserved where the source provides them
 - official WoW news articles use the Blizzard article as the primary link when available
 
 Cloudflare secret: `DISCORD_FOREVER_UPDATES_WEBHOOK_URL`.
@@ -88,7 +89,7 @@ Each update is normalized into a persistent change record containing:
 
 The briefing layer is deliberately **character- and plan-agnostic**. It does not assign special relevance to a particular class, faction, profession, route, realm type, or character.
 
-Briefings deliberately do not duplicate each raw bluepost. New changes accumulate in a separate SQLite-backed `BriefingState` Durable Object. The first pending update opens a **four-hour accumulation window**; all subsequent Blizzard updates during that window join the same briefing without resetting the clock. If only one update arrives, it still waits for the four-hour window rather than producing an immediate single-item briefing.
+Briefings deliberately do not duplicate each raw bluepost. New changes accumulate in a separate SQLite-backed `BriefingState` Durable Object. Pending changes are released on a **six-hour Pacific clock** at approximately 12:00 AM, 6:00 AM, 12:00 PM, and 6:00 PM in `America/Los_Angeles`. The schedule follows daylight-saving time automatically. Updates that arrive after a slot wait for the next slot, and no empty briefing is sent when nothing changed.
 
 The first implementation is deterministic rather than model-generated. It preserves the underlying Blizzard wording and source links instead of inventing a stronger interpretation than the source supports. A later semantic/LLM layer can operate on this generalized ledger without replacing the source-of-truth machinery.
 
