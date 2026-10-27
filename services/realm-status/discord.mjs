@@ -50,6 +50,7 @@ export async function sendDiscord({
     offline: [`🔴 ${profile.displayName} is OFFLINE`, 0xed4245],
     degraded: [`🟡 ${profile.displayName} is DEGRADED`, 0xfee75c],
     prelaunch: [`🕓 ${profile.displayName} is PRE-LAUNCH`, 0x5865f2],
+    reservation: [`🔖 ${profile.displayName} NAME RESERVATION IS OPEN`, 0x5865f2],
     unknown: [`⚪ ${profile.displayName} status is UNKNOWN`, 0x99aab5],
   };
 
