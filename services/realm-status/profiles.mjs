@@ -35,6 +35,7 @@ const PROFILES = {
     id: 'live',
     displayName: 'WoW Forever',
     discordChannel: '#forever-realm-status',
+    reservationAt: '2026-10-27T20:00:00.000Z',
     launchAt: '2026-11-04T23:00:00.000Z',
     foreverDb: {
       url: 'https://foreverdb.net/status',
