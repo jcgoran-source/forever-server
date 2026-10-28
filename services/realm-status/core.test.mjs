@@ -112,6 +112,31 @@ test('unknown requires two consecutive observations before announcement', () => 
 });
 
 
+
+test('24-hour healthy heartbeat refreshes internal health state without Discord action', () => {
+  const prior = {
+    version: 3,
+    profile: 'beta',
+    status: 'online',
+    confirmed_status: 'online',
+    updated_at: '2026-10-26T19:00:00.000Z',
+    last_health_at: '2026-10-26T19:00:00.000Z',
+    unknown_streak: 0,
+  };
+
+  const decision = evaluateObservation(
+    profile,
+    prior,
+    { status: 'online', confidence: 'high' },
+    '2026-10-27T19:00:00.000Z',
+  );
+
+  assert.equal(decision.action, null);
+  assert.equal(decision.health_refresh, true);
+  assert.equal(decision.next.last_health_at, '2026-10-27T19:00:00.000Z');
+  assert.equal(decision.next.status, 'online');
+});
+
 test('live profile resolves to prelaunch before name reservation opens', () => {
   const result = resolveStatus(liveProfile, {
     now_ms: Date.parse('2026-10-27T19:59:59Z'),
