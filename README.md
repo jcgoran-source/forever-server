@@ -130,7 +130,7 @@ The sentry considers:
 
 States are **PRE-LAUNCH**, **NAME RESERVATION OPEN**, **ONLINE**, **OFFLINE**, **DEGRADED**, and **UNKNOWN**.
 
-Failed hosted-runtime TCP probes are inconclusive rather than proof of an outage. Conflicting or stale evidence becomes `UNKNOWN`. Two consecutive unknown observations are required before Discord notification. A 24-hour health heartbeat distinguishes a stable monitor from a dead one.
+Failed hosted-runtime TCP probes are inconclusive rather than proof of an outage. Conflicting or stale evidence becomes `UNKNOWN`. Two consecutive unknown observations are required before Discord notification. A 24-hour internal health marker is refreshed silently for observability; healthy heartbeat messages are not posted to Discord.
 
 ### Scheduling
 
