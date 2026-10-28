@@ -1,0 +1,32 @@
+name: Realm Sentry Health Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/realm-status/.health-check'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Observe live sentry
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          timeout 75s npx --yes wrangler@latest tail forever-realm-status --format pretty 2>&1 | tee realm-health.log || code=$?
+          if [ "${code:-0}" -ne 0 ] && [ "${code:-0}" -ne 124 ]; then
+            exit "$code"
+          fi
+          echo "=== HEALTH SIGNALS ==="
+          grep -E "profile|observed|previous|status|confirmed_status|confidence|Realm sentry alarm|alarm healthy|watchdog|next 30-second alarm|internal health marker|No realm-status transition|transition sent|check failed|ERROR|exception" realm-health.log || true
