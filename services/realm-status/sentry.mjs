@@ -28,6 +28,7 @@ export async function executeSentry({
     sources: diagnostics,
     previous: decision.previous,
     action: decision.action,
+    health_refresh: Boolean(decision.health_refresh),
     bootstrap: decision.bootstrap,
   }, null, 2));
 
@@ -50,9 +51,9 @@ export async function executeSentry({
     console.log(
       `Realm-status transition sent: ${decision.previous.status} -> ${observed.status} (${observed.confidence}).`,
     );
-  } else if (decision.action === 'heartbeat') {
+  } else if (decision.health_refresh) {
     console.log(
-      `Realm sentry health heartbeat sent: ${observed.status} (${observed.confidence}).`,
+      `Realm sentry internal health marker refreshed: ${observed.status} (${observed.confidence}); no Discord notification sent.`,
     );
   } else if (observed.status === 'unknown') {
     console.warn(
@@ -70,6 +71,7 @@ export async function executeSentry({
     observed,
     state: decision.next,
     action: decision.action,
+    health_refresh: Boolean(decision.health_refresh),
     bootstrap: decision.bootstrap,
     diagnostics,
   };
