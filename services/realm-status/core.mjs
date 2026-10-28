@@ -257,10 +257,22 @@ export function evaluateObservation(profile, previousRaw, observed, nowIso) {
 
   if (heartbeatDue) {
     next.last_health_at = nowIso;
-    return { previous, next, action: 'heartbeat', bootstrap: false };
+    return {
+      previous,
+      next,
+      action: null,
+      bootstrap: false,
+      health_refresh: true,
+    };
   }
 
-  return { previous, next, action: null, bootstrap: false };
+  return {
+    previous,
+    next,
+    action: null,
+    bootstrap: false,
+    health_refresh: false,
+  };
 }
 
 export function statusLabel(value) {
