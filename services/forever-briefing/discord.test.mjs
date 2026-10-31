@@ -33,3 +33,10 @@ test('briefing payload suppresses mentions when no valid role is configured', ()
   assert.equal(payload.content, undefined);
   assert.deepEqual(payload.allowed_mentions, { parse: [] });
 });
+
+test('current briefing is titled Forever news briefing', () => {
+  const current = briefingPayload(briefing);
+  assert.equal(current.embeds[0].title, 'Forever news briefing · #2');
+  const historical = briefingPayload({ ...briefing, kind: 'historical' });
+  assert.equal(historical.embeds[0].title, 'Forever historical briefing · #2');
+});

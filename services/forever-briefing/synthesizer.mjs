@@ -41,8 +41,8 @@ const CATEGORY_RULES = [
 
 const PRIORITY_WEIGHT = { high: 3, medium: 2, normal: 1 };
 
-export const BRIEFING_INTERVAL_MS = 6 * 60 * 60 * 1000;
-export const BRIEFING_SLOT_HOURS = [0, 6, 12, 18];
+export const BRIEFING_INTERVAL_MS = 24 * 60 * 60 * 1000;
+export const BRIEFING_SLOT_HOURS = [18];
 export const BRIEFING_TIME_ZONE = 'America/Los_Angeles';
 export const BRIEFING_SLOT_GRACE_MINUTES = 10;
 
@@ -74,12 +74,11 @@ function pacificParts(date = new Date()) {
 
 export function briefingSlotKey(date = new Date()) {
   const parts = pacificParts(date);
-  const slotHour = Math.floor(parts.hour / 6) * 6;
   return [
     String(parts.year).padStart(4, '0'),
     String(parts.month).padStart(2, '0'),
     String(parts.day).padStart(2, '0'),
-    String(slotHour).padStart(2, '0'),
+    String(BRIEFING_SLOT_HOURS[0]).padStart(2, '0'),
   ].join('-');
 }
 
@@ -317,10 +316,16 @@ export function briefingDue(
       ? briefingSlotKey(new Date(state.last_brief_at))
       : null);
 
-  return (
-    firstPendingSlot < currentSlot &&
-    lastBriefSlot !== currentSlot
-  );
+  // Before 6 PM Pacific, an update qualifies for today's briefing.
+  // At or after 6 PM it must wait for the following day's slot.
+  // Compare Pacific local calendar days to remain DST-safe.
+  const firstPendingParts = pacificParts(new Date(firstPendingMs));
+  const eligibleForCurrentSlot =
+    firstPendingSlot < currentSlot ||
+    (firstPendingSlot === currentSlot &&
+      firstPendingParts.hour < BRIEFING_SLOT_HOURS[0]);
+
+  return eligibleForCurrentSlot && lastBriefSlot !== currentSlot;
 }
 
 export function buildBriefingFromChanges(
