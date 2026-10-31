@@ -5,8 +5,8 @@ Live utility infrastructure for **World of Warcraft: Forever**.
 The repository currently contains two Cloudflare runtimes and a third synthesis subsystem:
 
 - `realm-status` — live service monitoring and Discord status alerts.
-- `forever-updates` — Blizzard-authored Forever news, blueposts, hotfixes, operational notices, and official forum replies.
-- `forever-briefing` — deterministic change synthesis fed directly by `forever-updates`; it does not poll Blizzard independently.
+- `forever-updates` — Blizzard-authored Forever news, blueposts, hotfixes, operational notices, official forum replies, and Wowhead Forever articles.
+- `forever-briefing` — deterministic change synthesis fed directly by `forever-updates`; it does not poll either publisher independently.
 
 ## Architecture
 
@@ -72,13 +72,15 @@ Other behavior:
 - compact Discord excerpts capped at 850 characters, with paragraph breaks preserved where the source provides them
 - official WoW news articles use the Blizzard article as the primary link when available
 
+The same once-per-minute Worker now also polls the Wowhead Forever RSS feed (`https://www.wowhead.com/news/rss/forever`). It maintains a **separate** persistent article-ID cursor, silently seeds currently visible items on first successful collection, and sends each subsequent new article to `#forever-updates` with a distinct Wowhead attribution and a link to the original article. These articles also enter the shared briefing ledger and its normal six-hour digest. Wowhead fetch/parse errors do not block the Blizzard tracker or the briefing schedule. The RSS is news content, not official Blizzard communication; Wowhead datamining and editorial reporting are labeled accordingly.
+
 Cloudflare secret: `DISCORD_FOREVER_UPDATES_WEBHOOK_URL`.
 
 All Discord outputs also support an optional shared `FOREVER_TOOLS_ROLE_ID`. When configured with a valid Discord role ID, the tool prepends that role mention and permits only that role to ping; when absent or invalid, mentions remain suppressed.
 
 ## forever-briefing → Discord `#forever-briefing`
 
-The change synthesizer consumes each qualifying Blizzard post from `forever-updates` after relevance filtering. It does not make a second request to the Blizzard tracker.
+The change synthesizer consumes each qualifying Blizzard post and new Wowhead Forever news article from `forever-updates` after relevance filtering. It does not make a second request to the Blizzard tracker.
 
 Each update is normalized into a persistent change record containing:
 
