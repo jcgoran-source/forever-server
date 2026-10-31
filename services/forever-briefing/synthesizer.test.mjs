@@ -65,63 +65,48 @@ test('ingestion is idempotent by Blizzard post id', () => {
   assert.equal(second.state.pending_change_ids.length, 1);
 });
 
-test('briefing uses six-hour America/Los_Angeles clock slots', () => {
+test('briefing runs once daily at 6 PM America/Los_Angeles', () => {
   const ingested = ingestPostIntoState(
-    {},
-    post(),
-    new Date('2026-10-27T12:30:00Z'),
+    {}, post(), new Date('2026-10-27T12:30:00Z'),
   );
-
-  assert.equal(BRIEFING_INTERVAL_MS, 6 * 60 * 60 * 1000);
+  assert.equal(BRIEFING_INTERVAL_MS, 24 * 60 * 60 * 1000);
   assert.equal(BRIEFING_TIME_ZONE, 'America/Los_Angeles');
-
-  // 05:30 PDT pending update waits for the 06:00 PDT slot.
-  assert.equal(
-    briefingDue(ingested.state, Date.parse('2026-10-27T12:59:59Z')),
-    false,
-  );
-  assert.equal(
-    briefingDue(ingested.state, Date.parse('2026-10-27T13:00:00Z')),
-    true,
-  );
+  assert.equal(briefingDue(ingested.state, Date.parse('2026-10-28T00:59:59Z')), false);
+  assert.equal(briefingDue(ingested.state, Date.parse('2026-10-28T01:00:00Z')), true);
+  assert.equal(briefingDue(ingested.state, Date.parse('2026-10-28T01:09:00Z')), true);
+  assert.equal(briefingDue(ingested.state, Date.parse('2026-10-28T01:10:00Z')), false);
 });
 
-test('an update arriving after a slot rolls into the next six-hour briefing', () => {
+test('news arriving after 6 PM waits until tomorrow', () => {
   const ingested = ingestPostIntoState(
-    {},
-    post(),
-    new Date('2026-10-27T13:01:00Z'),
+    {}, post(), new Date('2026-10-28T01:01:00Z'),
   );
-
-  // 06:01 PDT arrived just after the 06:00 slot, so noon PDT is next.
-  assert.equal(
-    briefingDue(ingested.state, Date.parse('2026-10-27T13:05:00Z')),
-    false,
-  );
-  assert.equal(
-    briefingDue(ingested.state, Date.parse('2026-10-27T19:00:00Z')),
-    true,
-  );
+  assert.equal(briefingDue(ingested.state, Date.parse('2026-10-28T01:05:00Z')), false);
+  assert.equal(briefingDue(ingested.state, Date.parse('2026-10-29T01:00:00Z')), true);
 });
 
-test('briefing slot calculation follows Pacific daylight-saving time', () => {
-  assert.equal(
-    briefingSlotKey(new Date('2026-10-27T13:00:00Z')),
-    '2026-10-27-06',
+test('news arriving exactly at 6 PM waits until tomorrow', () => {
+  const ingested = ingestPostIntoState(
+    {}, post(), new Date('2026-10-28T01:00:00Z'),
   );
-  assert.equal(
-    briefingSlotKey(new Date('2026-11-02T14:00:00Z')),
-    '2026-11-02-06',
-  );
+  assert.equal(briefingDue(ingested.state, Date.parse('2026-10-28T01:02:00Z')), false);
+  assert.equal(briefingDue(ingested.state, Date.parse('2026-10-29T01:00:00Z')), true);
 });
 
-test('later updates join the current batch without resetting its slot', () => {
+test('slot identity follows Pacific dates across daylight saving time', () => {
+  assert.equal(briefingSlotKey(new Date('2026-10-27T13:00:00Z')), '2026-10-27-18');
+  assert.equal(briefingSlotKey(new Date('2026-11-02T14:00:00Z')), '2026-11-02-18');
+  const ingested = ingestPostIntoState(
+    {}, post(), new Date('2026-11-02T20:00:00Z'),
+  );
+  assert.equal(briefingDue(ingested.state, Date.parse('2026-11-03T01:59:59Z')), false);
+  assert.equal(briefingDue(ingested.state, Date.parse('2026-11-03T02:00:00Z')), true);
+});
+
+test('later updates join the current daily batch without resetting its slot', () => {
   let state = ingestPostIntoState(
-    {},
-    post(),
-    new Date('2026-10-27T12:00:00Z'),
+    {}, post(), new Date('2026-10-27T12:00:00Z'),
   ).state;
-
   state = ingestPostIntoState(
     state,
     post({
@@ -131,12 +116,10 @@ test('later updates join the current batch without resetting its slot', () => {
     }),
     new Date('2026-10-27T12:45:00Z'),
   ).state;
-
   assert.equal(state.first_pending_at, '2026-10-27T12:00:00.000Z');
-  assert.equal(
-    briefingDue(state, Date.parse('2026-10-27T13:00:00Z')),
-    true,
-  );
+  assert.equal(briefingDue(state, Date.parse('2026-10-28T01:00:00Z')), true);
+  const cleared = markBriefingSent(state, new Date('2026-10-28T01:00:00Z'));
+  assert.equal(briefingDue(cleared, Date.parse('2026-10-28T01:02:00Z')), false);
 });
 
 test('briefing groups general changes by domain', () => {
