@@ -1,11 +1,13 @@
 import { DurableObject } from 'cloudflare:workers';
 
 import { collectForeverUpdates } from './collector.mjs';
+import { collectWowheadUpdates } from './wowhead.mjs';
 import { runHistoricalBackfill } from '../forever-briefing/backfill.mjs';
 import {
   briefingDue,
   buildBriefing,
   ingestPostIntoState,
+  ingestWowheadIntoState,
   markBriefingSent,
   markHistoricalBriefingSent,
   normalizeBriefingState,
@@ -76,6 +78,16 @@ async function ingestBriefingPost(store, post) {
     );
   }
 
+  return result;
+}
+
+async function ingestWowheadArticle(store, article) {
+  const current = await store.get();
+  const result = ingestWowheadIntoState(current, article);
+  if (!result.duplicate) {
+    await store.put(result.state);
+    console.log('Synthesized Wowhead article ' + article.id);
+  }
   return result;
 }
 
@@ -202,6 +214,18 @@ export default {
         onRelevantPost: (post) => ingestBriefingPost(briefingStore, post),
         mentionRoleId: env.FOREVER_TOOLS_ROLE_ID,
       });
+
+      // Wowhead failures are isolated from Blizzard ingestion and briefing delivery.
+      try {
+        await collectWowheadUpdates({
+          stateStore: durableStore(env.UPDATE_STATE, 'wowhead-forever-news'),
+          webhookUrl: env.DISCORD_FOREVER_UPDATES_WEBHOOK_URL,
+          onRelevantArticle: (article) => ingestWowheadArticle(briefingStore, article),
+          mentionRoleId: env.FOREVER_TOOLS_ROLE_ID,
+        });
+      } catch (error) {
+        console.error('Wowhead Forever RSS collection failed:', error);
+      }
 
       await maybeRunHistoricalBackfill(
         briefingStore,
