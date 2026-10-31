@@ -66,7 +66,7 @@ export function briefingPayload(briefing, mentionRoleId = null) {
 
   const description = historical
     ? `Controlled historical backfill: ${briefing.change_count} Blizzard-authored Forever update${briefing.change_count === 1 ? '' : 's'} synthesized into the ledger.${windowText}`
-    : `${briefing.change_count} Blizzard-authored Forever update${briefing.change_count === 1 ? '' : 's'} synthesized since the previous briefing.`;
+    : `${briefing.change_count} Forever news item${briefing.change_count === 1 ? '' : 's'} from Blizzard and/or Wowhead synthesized since the previous briefing.`;
 
   const mention = roleMention(mentionRoleId);
 
@@ -82,7 +82,7 @@ export function briefingPayload(briefing, mentionRoleId = null) {
       footer: {
         text: historical
           ? 'Controlled historical backfill · deterministic synthesis'
-          : 'Deterministic synthesis · source: Blizzard-authored posts',
+          : 'Deterministic synthesis · sources: Blizzard & Wowhead',
       },
     }],
   };
