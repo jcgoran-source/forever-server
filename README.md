@@ -72,7 +72,7 @@ Other behavior:
 - compact Discord excerpts capped at 850 characters, with paragraph breaks preserved where the source provides them
 - official WoW news articles use the Blizzard article as the primary link when available
 
-The same once-per-minute Worker now also polls the Wowhead Forever RSS feed (`https://www.wowhead.com/news/rss/forever`). It maintains a **separate** persistent article-ID cursor, silently seeds currently visible items on first successful collection, and sends each subsequent new article to `#forever-updates` with a distinct Wowhead attribution and a link to the original article. These articles also enter the shared briefing ledger and its normal six-hour digest. Wowhead fetch/parse errors do not block the Blizzard tracker or the briefing schedule. The RSS is news content, not official Blizzard communication; Wowhead datamining and editorial reporting are labeled accordingly.
+The same once-per-minute Worker now also polls the Wowhead Forever RSS feed (`https://www.wowhead.com/news/rss/forever`). It maintains a **separate** persistent article-ID cursor, silently seeds currently visible items on first successful collection, and sends each subsequent new article to `#forever-updates` with a distinct Wowhead attribution and a link to the original article. These articles also enter the shared briefing ledger and its daily 6:00 PM Pacific digest. Wowhead fetch/parse errors do not block the Blizzard tracker or the briefing schedule. The RSS is news content, not official Blizzard communication; Wowhead datamining and editorial reporting are labeled accordingly.
 
 Cloudflare secret: `DISCORD_FOREVER_UPDATES_WEBHOOK_URL`.
 
@@ -91,7 +91,7 @@ Each update is normalized into a persistent change record containing:
 
 The briefing layer is deliberately **character- and plan-agnostic**. It does not assign special relevance to a particular class, faction, profession, route, realm type, or character.
 
-Briefings deliberately do not duplicate each raw bluepost. New changes accumulate in a separate SQLite-backed `BriefingState` Durable Object. Pending changes are released on a **six-hour Pacific clock** at approximately 12:00 AM, 6:00 AM, 12:00 PM, and 6:00 PM in `America/Los_Angeles`. The schedule follows daylight-saving time automatically. Updates that arrive after a slot wait for the next slot, and no empty briefing is sent when nothing changed.
+Briefings deliberately do not duplicate each raw news item. New changes accumulate in a separate SQLite-backed `BriefingState` Durable Object. Pending changes are released **once daily at approximately 6:00 PM Pacific** in `America/Los_Angeles`. The schedule follows daylight-saving time automatically. News arriving before 6:00 PM is included that evening; news arriving at or after 6:00 PM waits until the following day. No empty briefing is sent when nothing changed.
 
 The first implementation is deterministic rather than model-generated. It preserves the underlying Blizzard wording and source links instead of inventing a stronger interpretation than the source supports. A later semantic/LLM layer can operate on this generalized ledger without replacing the source-of-truth machinery.
 
