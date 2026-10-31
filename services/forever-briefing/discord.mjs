@@ -58,7 +58,7 @@ export function briefingPayload(briefing, mentionRoleId = null) {
   const historical = briefing.kind === 'historical';
   const title = historical
     ? `Forever historical briefing · #${briefing.sequence}`
-    : `Forever change briefing · #${briefing.sequence}`;
+    : `Forever news briefing · #${briefing.sequence}`;
 
   const windowText = briefing.source_window
     ? ` Source window: ${briefing.source_window}.`
