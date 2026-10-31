@@ -38,6 +38,7 @@ test('rejects HTML and unrelated sources instead of advancing state', () => {
 test('first poll silently seeds history, later polls send and synthesize new articles', async () => {
   let stored = {};
   let ledger = {};
+  let rssReads = 0;
   const posts = [];
   const stateStore = {
     get: async () => stored,
@@ -45,7 +46,8 @@ test('first poll silently seeds history, later polls send and synthesize new art
   };
   const fetchImpl = async (url, opts) => {
     if (url === WOWHEAD_FOREVER_RSS_URL) {
-      return { ok: true, text: async () => posts.length === 0 ? xml : xml.replace('</channel>', String.raw`<item><title>Professions updated for Forever</title>
+      rssReads += 1;
+      return { ok: true, text: async () => rssReads < 3 ? xml : xml.replace('</channel>', String.raw`<item><title>Professions updated for Forever</title>
 <link>https://www.wowhead.com/forever/news/profession-update-382873</link>
 <pubDate>Sat, 31 Oct 2026 14:00:00 GMT</pubDate>
 <description>Tailoring recipe changes.</description></item></channel>`) };
