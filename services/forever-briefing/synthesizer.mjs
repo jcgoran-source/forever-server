@@ -186,6 +186,53 @@ export function synthesizePost(post) {
   };
 }
 
+export function synthesizeWowheadArticle(article) {
+  const title = plain(article.title);
+  const summary = plain(article.summary);
+  const text = title + '\n' + summary;
+  const categories = categoriesFor(text);
+  return {
+    id: 'wowhead:' + article.id,
+    article_id: String(article.id),
+    post_id: null,
+    topic_id: null,
+    created_at: article.created_at,
+    title,
+    summary: summary.slice(0, 420) || title,
+    source: 'Wowhead News',
+    url: article.url,
+    forum_url: null,
+    categories,
+    primary_category: categories[0],
+    priority: priorityFor(text, categories),
+  };
+}
+
+export function ingestWowheadIntoState(
+  rawState,
+  article,
+  now = new Date(),
+) {
+  const state = normalizeBriefingState(rawState);
+  const change = synthesizeWowheadArticle(article);
+  if (state.changes.some((item) => item.id === change.id)) {
+    return { state, change: null, duplicate: true };
+  }
+  const nowIso = now.toISOString();
+  return {
+    state: {
+      ...state,
+      changes: [...state.changes, change].slice(-500),
+      pending_change_ids: [...state.pending_change_ids, change.id].slice(-250),
+      first_pending_at: state.first_pending_at || nowIso,
+      last_change_at: nowIso,
+      updated_at: nowIso,
+    },
+    change,
+    duplicate: false,
+  };
+}
+
 export function normalizeBriefingState(raw = {}) {
   return {
     version: 1,

@@ -159,3 +159,40 @@ export async function sendGapWarning(
     throw new Error(`Discord gap warning -> HTTP ${response.status}`);
   }
 }
+
+
+export async function sendWowheadUpdate(
+  webhookUrl,
+  article,
+  fetchImpl = fetch,
+  mentionRoleId = null,
+) {
+  const mention = roleMention(mentionRoleId);
+  const payload = {
+    username: 'Forever Updates',
+    content: mention.content,
+    allowed_mentions: mention.allowed_mentions,
+    embeds: [{
+      title: plain(article.title).slice(0, 256),
+      url: article.url,
+      description: plain(article.summary).slice(0, 850) || 'New Wowhead Forever article.',
+      author: { name: article.author || 'Wowhead' },
+      timestamp: article.created_at,
+      footer: { text: 'WoW Forever • Wowhead News' },
+    }],
+  };
+
+  const separator = webhookUrl.includes('?') ? '&' : '?';
+  const response = await fetchImpl(webhookUrl + separator + 'wait=true', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'user-agent': 'ForeverUpdates/2.0 (cloudflare-worker)',
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) {
+    throw new Error('Discord Wowhead send -> HTTP ' + response.status);
+  }
+}
