@@ -23,7 +23,8 @@ function canonicalArticleUrl(value) {
     if (
       url.protocol !== 'https:' ||
       !/^(?:www\.)?wowhead\.com$/i.test(url.hostname) ||
-      !/^\/(?:forever\/)?news\/.+/i.test(url.pathname)
+      !(/^\/(?:[a-z0-9-]+\/)?news\/.+/i.test(url.pathname) ||
+        /^\/news=\d{4,}\/?$/i.test(url.pathname))
     ) return null;
 
     url.search = '';
@@ -35,8 +36,9 @@ function canonicalArticleUrl(value) {
 }
 
 function articleId(url) {
-  const match = new URL(url).pathname.match(/-(\d{4,})\/?$/);
-  return match ? match[1] : new URL(url).pathname.toLowerCase();
+  const pathname = new URL(url).pathname;
+  const match = pathname.match(/(?:\/news=|\/news\/)(\d{4,})\/?$|-(\d{4,})\/?$/i);
+  return match ? (match[1] || match[2]) : pathname.toLowerCase();
 }
 
 export function parseWowheadRss(xml) {
@@ -52,7 +54,10 @@ export function parseWowheadRss(xml) {
   const results = new Map();
   for (const [, item] of items) {
     const title = plain(xmlField(item, 'title'));
-    const url = canonicalArticleUrl(xmlField(item, 'link'));
+    // Wowhead often uses /news=123456 in RSS rather than the
+    // /forever/news/article-title-123456 URLs seen on its website.
+    const url = canonicalArticleUrl(xmlField(item, 'link')) ||
+      canonicalArticleUrl(xmlField(item, 'guid'));
     const publishedMs = Date.parse(xmlField(item, 'pubDate'));
     if (!title || !url || !Number.isFinite(publishedMs)) continue;
 
@@ -74,7 +79,11 @@ export function parseWowheadRss(xml) {
   }
 
   if (!results.size) {
-    throw new Error('Wowhead RSS had no parseable, dated news articles.');
+    const sampleLink = xmlField(items[0][1], 'link').slice(0, 160);
+    throw new Error(
+      'Wowhead RSS had ' + items.length + ' item(s) but no parseable, dated ' +
+      'Wowhead article links. First link: ' + (sampleLink || '(missing)'),
+    );
   }
 
   return [...results.values()].sort(
@@ -139,11 +148,13 @@ export async function collectWowheadUpdates({
       updated_at: nowIso,
     };
     await stateStore.put(state);
+    console.log('Wowhead Forever RSS bootstrap: recorded ' + articles.length + ' existing articles without sending history.');
     return { bootstrapped: true, processed: 0, sent: 0, state };
   }
 
   const seen = new Set(state.recent_article_ids);
   const unseen = articles.filter((article) => !seen.has(article.id));
+  if (!unseen.length) console.log('Wowhead Forever RSS: no new articles; ' + articles.length + ' currently visible.');
   let sent = 0;
 
   for (const article of unseen) {

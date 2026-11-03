@@ -72,7 +72,9 @@ Other behavior:
 - compact Discord excerpts capped at 850 characters, with paragraph breaks preserved where the source provides them
 - official WoW news articles use the Blizzard article as the primary link when available
 
-The same once-per-minute Worker now also polls the Wowhead Forever RSS feed (`https://www.wowhead.com/news/rss/forever`). It maintains a **separate** persistent article-ID cursor, silently seeds currently visible items on first successful collection, and sends each subsequent new article to `#forever-updates` with a distinct Wowhead attribution and a link to the original article. These articles also enter the shared briefing ledger and its daily 6:00 PM Pacific digest. Wowhead fetch/parse errors do not block the Blizzard tracker or the briefing schedule. The RSS is news content, not official Blizzard communication; Wowhead datamining and editorial reporting are labeled accordingly.
+The same once-per-minute Worker also polls the Wowhead Forever RSS feed (`https://www.wowhead.com/news/rss/forever`). It accepts both Wowhead's RSS permalink form (`/news=123456`) and article slug URLs, and maintains a **separate** persistent article-ID cursor. On its first successful collection, it silently seeds the currently visible articles rather than flooding Discord with old news. Subsequent new articles go to `#forever-updates` with a distinct Wowhead attribution and a link to the original article. They also enter the shared briefing ledger and its daily 6:00 PM Pacific digest. Wowhead's RSS is news content, not official Blizzard communication; datamining and editorial reporting are labeled accordingly.
+
+The scheduled pipeline is **failure-isolated and sequential**: Blizzard collection, Wowhead collection, optional historical backfill, and daily briefing delivery each run even if an earlier stage throws. Collection remains sequential to protect the shared briefing ledger's read-modify-write state. Errors are logged with stage names and exception messages in Cloudflare Observability; a failed source does not suppress delivery of previously collected news.
 
 Cloudflare secret: `DISCORD_FOREVER_UPDATES_WEBHOOK_URL`.
 
