@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 
 import { collectForeverUpdates } from './collector.mjs';
 import { collectWowheadUpdates } from './wowhead.mjs';
+import { runIndependentStages } from './orchestrator.mjs';
 import { runHistoricalBackfill } from '../forever-briefing/backfill.mjs';
 import {
   briefingDue,
@@ -207,37 +208,29 @@ export default {
     const updatesStore = durableStore(env.UPDATE_STATE, 'live-updates');
     const briefingStore = durableStore(env.BRIEFING_STATE, 'live-briefing');
 
-    ctx.waitUntil((async () => {
-      await collectForeverUpdates({
+    ctx.waitUntil(runIndependentStages([
+      ['Blizzard Blue Tracker collection', () => collectForeverUpdates({
         stateStore: updatesStore,
         webhookUrl: env.DISCORD_FOREVER_UPDATES_WEBHOOK_URL,
         onRelevantPost: (post) => ingestBriefingPost(briefingStore, post),
         mentionRoleId: env.FOREVER_TOOLS_ROLE_ID,
-      });
-
-      // Wowhead failures are isolated from Blizzard ingestion and briefing delivery.
-      try {
-        await collectWowheadUpdates({
-          stateStore: durableStore(env.UPDATE_STATE, 'wowhead-forever-news'),
-          webhookUrl: env.DISCORD_FOREVER_UPDATES_WEBHOOK_URL,
-          onRelevantArticle: (article) => ingestWowheadArticle(briefingStore, article),
-          mentionRoleId: env.FOREVER_TOOLS_ROLE_ID,
-        });
-      } catch (error) {
-        console.error('Wowhead Forever RSS collection failed:', error);
-      }
-
-      await maybeRunHistoricalBackfill(
+      })],
+      ['Wowhead Forever RSS collection', () => collectWowheadUpdates({
+        stateStore: durableStore(env.UPDATE_STATE, 'wowhead-forever-news'),
+        webhookUrl: env.DISCORD_FOREVER_UPDATES_WEBHOOK_URL,
+        onRelevantArticle: (article) => ingestWowheadArticle(briefingStore, article),
+        mentionRoleId: env.FOREVER_TOOLS_ROLE_ID,
+      })],
+      ['Historical backfill', () => maybeRunHistoricalBackfill(
         briefingStore,
         env.DISCORD_FOREVER_BRIEFING_WEBHOOK_URL,
         env,
-      );
-
-      await maybeDeliverBriefing(
+      )],
+      ['Daily briefing delivery', () => maybeDeliverBriefing(
         briefingStore,
         env.DISCORD_FOREVER_BRIEFING_WEBHOOK_URL,
         env.FOREVER_TOOLS_ROLE_ID,
-      );
-    })());
+      )],
+    ]));
   },
 };
