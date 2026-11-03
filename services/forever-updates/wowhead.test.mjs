@@ -30,6 +30,34 @@ test('parses RSS stories, publication times, CDATA and canonical URLs', () => {
   assert.equal(items[0].url, 'https://www.wowhead.com/forever/news/new-mage-talents-382871');
 });
 
+test('parses actual Wowhead RSS /news=ID links and normalizes article IDs', () => {
+  const realFormat = String.raw`<?xml version="1.0"?>
+<rss version="2.0"><channel>
+<item>
+<title><![CDATA[WoW: Forever Name Reservations]]></title>
+<link>https://www.wowhead.com/news=383612</link>
+<guid isPermaLink="true">https://www.wowhead.com/news=383612</guid>
+<pubDate>Tue, 27 Oct 2026 15:05:03 -0500</pubDate>
+<description><![CDATA[<p>Name reservations are live.</p>]]></description>
+</item></channel></rss>`;
+  const articles = parseWowheadRss(realFormat);
+  assert.equal(articles.length, 1);
+  assert.equal(articles[0].id, '383612');
+  assert.equal(articles[0].url, 'https://www.wowhead.com/news=383612');
+  assert.equal(articles[0].created_at, '2026-10-27T20:05:03.000Z');
+});
+
+test('RSS guid serves as article URL fallback and rejects off-domain links', () => {
+  const valid = xml
+    .replace('<link>https://www.wowhead.com/forever/news/new-mage-talents-382871?utm_source=rss</link>',
+      '<guid>https://www.wowhead.com/news=382871</guid>');
+  assert.equal(parseWowheadRss(valid)[0].id, '382871');
+  assert.throws(
+    () => parseWowheadRss(xml.replaceAll('www.wowhead.com', 'evil.wowhead.com')),
+    /no parseable/,
+  );
+});
+
 test('rejects HTML and unrelated sources instead of advancing state', () => {
   assert.throws(() => parseWowheadRss('<html>Blocked</html>'), /non-RSS/);
   assert.throws(() => parseWowheadRss(xml.replaceAll('www.wowhead.com', 'untrusted.test')), /no parseable/);
